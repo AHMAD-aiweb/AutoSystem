@@ -126,11 +126,20 @@
                 </div>
 
                 <h2 class="text-3xl font-bold mb-6">Eligibility & Rewards</h2>
-                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+                    <!-- Starter Tier (NEW) -->
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-green-500">
+                        <h3 class="text-xl font-bold mb-2 text-green-600">Starter Tier</h3>
+                        <p class="text-gray-600 mb-4">5 clicks</p>
+                        <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                            <div id="starter-progress" class="bg-green-500 h-4 rounded-full" style="width: 0%;"></div>
+                        </div>
+                        <button id="claim-starter" class="w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" disabled>Claim Reward</button>
+                    </div>
                     <!-- Bronze Tier -->
                     <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-600">
                         <h3 class="text-xl font-bold mb-2 text-yellow-700">Bronze Tier</h3>
-                        <p class="text-gray-600 mb-4">7,500 clicks / month</p>
+                        <p class="text-gray-600 mb-4">7,500 clicks</p>
                         <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
                             <div id="bronze-progress" class="bg-yellow-500 h-4 rounded-full" style="width: 0%;"></div>
                         </div>
@@ -139,7 +148,7 @@
                     <!-- Silver Tier -->
                     <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-gray-400">
                         <h3 class="text-xl font-bold mb-2 text-gray-500">Silver Tier</h3>
-                        <p class="text-gray-600 mb-4">15,000 clicks / month</p>
+                        <p class="text-gray-600 mb-4">15,000 clicks</p>
                          <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
                             <div id="silver-progress" class="bg-gray-400 h-4 rounded-full" style="width: 0%;"></div>
                         </div>
@@ -148,7 +157,7 @@
                     <!-- Gold Tier -->
                     <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-400">
                         <h3 class="text-xl font-bold mb-2 text-yellow-500">Gold Tier</h3>
-                        <p class="text-gray-600 mb-4">50,000 clicks / month</p>
+                        <p class="text-gray-600 mb-4">50,000 clicks</p>
                         <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
                             <div id="gold-progress" class="bg-yellow-400 h-4 rounded-full" style="width: 0%;"></div>
                         </div>
@@ -158,7 +167,7 @@
                     <!-- Diamond Tier -->
                     <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-blue-300">
                         <h3 class="text-xl font-bold mb-2 text-blue-400">Diamond Tier</h3>
-                        <p class="text-gray-600 mb-4">100,000 clicks / month</p>
+                        <p class="text-gray-600 mb-4">100,000 clicks</p>
                         <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
                             <div id="diamond-progress" class="bg-blue-300 h-4 rounded-full" style="width: 0%;"></div>
                         </div>
@@ -292,7 +301,8 @@
             getDoc,
             updateDoc,
             collection,
-            runTransaction // <-- Import runTransaction
+            addDoc, // <-- Import addDoc
+            runTransaction
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { 
             getStorage, 
@@ -320,7 +330,6 @@
 
         // --- Link Shortening & Generation ---
         function generateShortCode(originalUrl, userId, linkId) {
-            // This is a simplified hash function for demonstration.
             const hash = (s) => {
                 let h = 0;
                 for(let i = 0; i < s.length; i++) {
@@ -332,7 +341,6 @@
         }
         
         function getShortUrl(shortCode) {
-             // Use your actual domain here
             return `https://ahmad-aiweb.github.io/AutoSystem/#/redirect/${shortCode}`;
         }
 
@@ -342,7 +350,7 @@
 
         async function handleRedirect() {
             if (window.location.hash.startsWith('#/redirect/')) {
-                appContainer.classList.add('hidden'); // Hide the main app
+                appContainer.classList.add('hidden');
                 const shortCode = window.location.hash.substring('#/redirect/'.length);
 
                 if (shortCode) {
@@ -354,7 +362,6 @@
                     if (shortLinkDoc.exists()) {
                         const { original, ownerId, linkId } = shortLinkDoc.data();
                         
-                        // Increment clicks using a transaction
                         try {
                             const userDocRef = doc(db, "users", ownerId);
                             const linkDocRef = doc(db, `users/${ownerId}/links`, linkId);
@@ -374,7 +381,6 @@
                                 transaction.update(linkDocRef, { clicks: newLinkClicks });
                             });
                             
-                            // Redirect the user
                             window.location.replace(original);
 
                         } catch (e) {
@@ -391,7 +397,6 @@
             }
         }
         
-        // Listen for redirect attempts on page load and when the URL hash changes
         window.addEventListener('hashchange', handleRedirect);
         window.addEventListener('load', handleRedirect);
 
@@ -464,7 +469,8 @@
                     name: name,
                     email: email,
                     clicks: 0,
-                    claimedRewards: { bronze: false, silver: false, gold: false, diamond: false }
+                    // Add starter tier to claimed rewards
+                    claimedRewards: { starter: false, bronze: false, silver: false, gold: false, diamond: false }
                 });
 
                 // Generate and store short links
@@ -479,7 +485,6 @@
                     const shortCode = generateShortCode(originalLinks[i], user.uid, linkId);
                     const shortUrl = getShortUrl(shortCode);
 
-                    // Store in user's subcollection for display
                     const linkDocRef = doc(db, `users/${user.uid}/links`, linkId);
                     await setDoc(linkDocRef, {
                         original: originalLinks[i],
@@ -487,7 +492,6 @@
                         clicks: 0
                     });
 
-                    // Store in top-level collection for lookup during redirect
                     const shortLinkDocRef = doc(db, "shortlinks", shortCode);
                     await setDoc(shortLinkDocRef, {
                         original: originalLinks[i],
@@ -524,11 +528,11 @@
         // --- Logout ---
         document.getElementById('logout-btn').addEventListener('click', () => {
             signOut(auth);
-            window.location.hash = ''; // Clear hash on logout
+            window.location.hash = '';
         });
         document.getElementById('mobile-logout-btn').addEventListener('click', () => {
             signOut(auth);
-            window.location.hash = ''; // Clear hash on logout
+            window.location.hash = '';
         });
 
 
@@ -594,19 +598,18 @@
         function updateDashboard(clicks, claimedRewards) {
             document.getElementById('total-clicks').textContent = clicks;
 
-            const tiers = { bronze: 7500, silver: 15000, gold: 50000, diamond: 100000 };
+            // Add starter tier to the tiers object
+            const tiers = { starter: 5, bronze: 7500, silver: 15000, gold: 50000, diamond: 100000 };
 
             Object.keys(tiers).forEach(tier => {
                 const progress = Math.min((clicks / tiers[tier]) * 100, 100);
                 document.getElementById(`${tier}-progress`).style.width = `${progress}%`;
                 const claimBtn = document.getElementById(`claim-${tier}`);
                 
-                // Reset button style
                 claimBtn.disabled = true;
                 claimBtn.textContent = 'Claim Reward';
                 claimBtn.className = 'w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed';
                 if (tier === 'gold') claimBtn.classList.add('mt-4');
-
 
                 if (claimedRewards[tier]) {
                     claimBtn.textContent = 'Claimed';
@@ -614,8 +617,8 @@
                 } else if (clicks >= tiers[tier]) {
                     claimBtn.disabled = false;
                     claimBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                    const colorMap = { bronze: 'yellow-600', silver: 'gray-500', gold: 'yellow-500', diamond: 'blue-400' };
-                    const hoverColorMap = { bronze: 'yellow-700', silver: 'gray-600', gold: 'yellow-600', diamond: 'blue-500' };
+                    const colorMap = { starter: 'green-600', bronze: 'yellow-600', silver: 'gray-500', gold: 'yellow-500', diamond: 'blue-400' };
+                    const hoverColorMap = { starter: 'green-700', bronze: 'yellow-700', silver: 'gray-600', gold: 'yellow-600', diamond: 'blue-500' };
                     claimBtn.classList.add(`bg-${colorMap[tier]}`, `hover:bg-${hoverColorMap[tier]}`);
                 }
             });
@@ -632,20 +635,37 @@
 
             await updateDoc(userDocRef, updateData);
             
+            // Send notification for starter tier claim
+            if (tier === 'starter') {
+                try {
+                    const notificationsCollectionRef = collection(db, "notifications");
+                    await addDoc(notificationsCollectionRef, {
+                        type: 'StarterTierClaim',
+                        userId: user.uid,
+                        userEmail: user.email,
+                        claimedAt: new Date()
+                    });
+                } catch (error) {
+                    console.error("Error sending notification: ", error);
+                }
+            }
+            
             const userDoc = await getDoc(userDocRef);
             if(userDoc.exists()){
                  updateDashboard(userDoc.data().clicks, userDoc.data().claimedRewards);
             }
-            // Using a more modern approach than alert()
+
             const claimBtn = document.getElementById(`claim-${tier}`);
             const originalText = claimBtn.textContent;
             claimBtn.textContent = `Claimed ${tier.charAt(0).toUpperCase() + tier.slice(1)}!`;
             setTimeout(() => {
                 claimBtn.textContent = originalText;
-                loadUserData(user); // Reload data to show final state
+                loadUserData(user);
             }, 2000);
         }
 
+        // Add event listener for the new starter tier button
+        document.getElementById('claim-starter').addEventListener('click', () => claimReward('starter'));
         document.getElementById('claim-bronze').addEventListener('click', () => claimReward('bronze'));
         document.getElementById('claim-silver').addEventListener('click', () => claimReward('silver'));
         document.getElementById('claim-gold').addEventListener('click', () => claimReward('gold'));
