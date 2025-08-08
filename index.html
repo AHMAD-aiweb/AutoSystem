@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Employee System</title>
+    <meta name="description" content="Contact us for any inquiries about our automated employee system. Email us at contactmashab@gmail.com.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hidden {
+            display: none;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold text-indigo-600">AutoSystem</a>
+            <div class="hidden md:flex space-x-8 items-center" id="nav-links">
+                <!-- Logged out links -->
+                <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="signin">Sign In</a>
+                <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="signup">Sign Up</a>
+                 <!-- Logged in links -->
+                <a href="#" class="nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="main">Main</a>
+                <a href="#" class="nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="dashboard">Dashboard</a>
+                <a href="#" class="nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="profile">Profile</a>
+                <button id="logout-btn" class="hidden bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Logout</button>
+            </div>
+            <div class="md:hidden">
+                <button id="mobile-menu-button" class="text-gray-600 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden px-6 pt-2 pb-4 space-y-2 bg-white">
+             <!-- Logged out links -->
+            <a href="#" class="block nav-link text-gray-600 hover:text-indigo-600" data-page="signin">Sign In</a>
+            <a href="#" class="block nav-link text-gray-600 hover:text-indigo-600" data-page="signup">Sign Up</a>
+            <!-- Logged in links -->
+            <a href="#" class="block nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="main">Main</a>
+            <a href="#" class="block nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="dashboard">Dashboard</a>
+            <a href="#" class="block nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="profile">Profile</a>
+            <button id="mobile-logout-btn" class="w-full text-left block bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 hidden">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8">
+
+        <!-- Sign In Page -->
+        <div id="signin-page" class="page active">
+            <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-center text-indigo-600">Sign In</h2>
+                <form id="signin-form">
+                    <div class="mb-4">
+                        <label for="signin-email" class="block text-gray-700 mb-2">Email</label>
+                        <input type="email" id="signin-email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="signin-password" class="block text-gray-700 mb-2">Password</label>
+                        <input type="password" id="signin-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Sign In</button>
+                </form>
+                <p class="text-center mt-4">Don't have an account? <a href="#" class="text-indigo-600 hover:underline nav-link" data-page="signup">Sign Up</a></p>
+                <div id="signin-error" class="text-red-500 mt-4 text-center"></div>
+            </div>
+        </div>
+
+        <!-- Sign Up Page -->
+        <div id="signup-page" class="page">
+            <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+                <h2 class="text-3xl font-bold mb-6 text-center text-indigo-600">Create Your ID</h2>
+                <form id="signup-form">
+                    <div class="mb-4">
+                        <label for="signup-name" class="block text-gray-700 mb-2">Full Name</label>
+                        <input type="text" id="signup-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-email" class="block text-gray-700 mb-2">Email</label>
+                        <input type="email" id="signup-email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="signup-password" class="block text-gray-700 mb-2">Password</label>
+                        <input type="password" id="signup-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Sign Up</button>
+                </form>
+                 <p class="text-center mt-4">Already have an account? <a href="#" class="text-indigo-600 hover:underline nav-link" data-page="signin">Sign In</a></p>
+                <div id="signup-error" class="text-red-500 mt-4 text-center"></div>
+            </div>
+        </div>
+
+        <!-- Main Page -->
+        <div id="main-page" class="page">
+            <h1 class="text-4xl font-bold mb-4">Your Short Links</h1>
+            <p class="text-lg text-gray-600 mb-8">Share these links to track clicks and earn rewards.</p>
+            <div id="short-links-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Short links will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="dashboard-page" class="page">
+            <h1 class="text-4xl font-bold mb-8">Dashboard</h1>
+            <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                <h2 class="text-2xl font-bold mb-4">Your Clicks This Month</h2>
+                <p class="text-5xl font-bold text-indigo-600" id="total-clicks">0</p>
+            </div>
+
+            <h2 class="text-3xl font-bold mb-6">Eligibility & Rewards</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Bronze Tier -->
+                <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-600">
+                    <h3 class="text-xl font-bold mb-2 text-yellow-700">Bronze Tier</h3>
+                    <p class="text-gray-600 mb-4">7,500 clicks / month</p>
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                        <div id="bronze-progress" class="bg-yellow-500 h-4 rounded-full" style="width: 0%;"></div>
+                    </div>
+                    <button id="claim-bronze" class="w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" disabled>Claim Reward</button>
+                </div>
+                <!-- Silver Tier -->
+                <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-gray-400">
+                    <h3 class="text-xl font-bold mb-2 text-gray-500">Silver Tier</h3>
+                    <p class="text-gray-600 mb-4">15,000 clicks / month</p>
+                     <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                        <div id="silver-progress" class="bg-gray-400 h-4 rounded-full" style="width: 0%;"></div>
+                    </div>
+                    <button id="claim-silver" class="w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" disabled>Claim Reward</button>
+                </div>
+                <!-- Gold Tier -->
+                <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-400">
+                    <h3 class="text-xl font-bold mb-2 text-yellow-500">Gold Tier</h3>
+                    <p class="text-gray-600 mb-4">50,000 clicks / month</p>
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                        <div id="gold-progress" class="bg-yellow-400 h-4 rounded-full" style="width: 0%;"></div>
+                    </div>
+                    <p class="text-sm text-green-600 font-semibold mt-2">Eligible to work with us!</p>
+                    <button id="claim-gold" class="w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed mt-4" disabled>Claim Reward</button>
+                </div>
+                <!-- Diamond Tier -->
+                <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-blue-300">
+                    <h3 class="text-xl font-bold mb-2 text-blue-400">Diamond Tier</h3>
+                    <p class="text-gray-600 mb-4">100,000 clicks / month</p>
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                        <div id="diamond-progress" class="bg-blue-300 h-4 rounded-full" style="width: 0%;"></div>
+                    </div>
+                    <button id="claim-diamond" class="w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" disabled>Claim Reward</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profile-page" class="page">
+            <h1 class="text-4xl font-bold mb-8">Your Profile</h1>
+            <div class="max-w-lg mx-auto bg-white p-8 rounded-lg shadow-lg">
+                <form id="profile-form">
+                    <div class="mb-4">
+                        <label for="profile-name" class="block text-gray-700 mb-2">Name</label>
+                        <input type="text" id="profile-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="mb-4">
+                        <label for="profile-email" class="block text-gray-700 mb-2">Email</label>
+                        <input type="email" id="profile-email" class="w-full px-4 py-2 border rounded-lg bg-gray-200 cursor-not-allowed" readonly>
+                    </div>
+                    <div class="mb-6">
+                        <label for="profile-password" class="block text-gray-700 mb-2">New Password (optional)</label>
+                        <input type="password" id="profile-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Leave blank to keep current password">
+                    </div>
+                    <div class="mb-6">
+                        <label for="profile-cv" class="block text-gray-700 mb-2">Upload CV</label>
+                        <input type="file" id="profile-cv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <p id="cv-upload-status" class="text-sm text-green-600 mt-2"></p>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Update Profile</button>
+                </form>
+                 <div id="profile-message" class="text-green-500 mt-4 text-center"></div>
+            </div>
+        </div>
+
+        <!-- Privacy Policy Page -->
+        <div id="privacy-policy-page" class="page">
+             <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+                <h1 class="text-4xl font-bold mb-6">Privacy Policy</h1>
+                <div class="space-y-4 text-gray-700">
+                    <p>Your privacy is important to us. It is AutoSystem's policy to respect your privacy regarding any information we may collect from you across our website.</p>
+                    <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.</p>
+                    <p>We only retain collected information for as long as necessary to provide you with your requested service. What data we store, we’ll protect within commercially acceptable means to prevent loss and theft, as well as unauthorized access, disclosure, copying, use or modification.</p>
+                    <p>We don’t share any personally identifying information publicly or with third-parties, except when required to by law.</p>
+                    <p>Our website may link to external sites that are not operated by us. Please be aware that we have no control over the content and practices of these sites, and cannot accept responsibility or liability for their respective privacy policies.</p>
+                    <p>You are free to refuse our request for your personal information, with the understanding that we may be unable to provide you with some of your desired services.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terms and Conditions Page -->
+        <div id="terms-condition-page" class="page">
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+                <h1 class="text-4xl font-bold mb-6">Terms and Conditions</h1>
+                <div class="space-y-4 text-gray-700">
+                    <h2 class="text-2xl font-semibold">Welcome to AutoSystem!</h2>
+                    <p>These terms and conditions outline the rules and regulations for the use of AutoSystem's Website.</p>
+                    <p>By accessing this website we assume you accept these terms and conditions. Do not continue to use AutoSystem if you do not agree to take all of the terms and conditions stated on this page.</p>
+                    <h2 class="text-2xl font-semibold mt-4">Your Opportunity</h2>
+                    <p>With AutoSystem, you can earn money with us and build a brighter future. Our platform is designed for those who want a flexible, part-time opportunity to generate income. You don't need to dedicate much time; you can work at your own pace and on your own schedule.</p>
+                    <p>By sharing your unique links and driving traffic, you unlock rewards and potential career opportunities with us. The more clicks you generate, the higher your tier and the greater your rewards. Reaching the Gold Tier makes you eligible to be considered for a more permanent role within our organization.</p>
+                    <h2 class="text-2xl font-semibold mt-4">User Responsibilities</h2>
+                    <p>You are responsible for any activity that occurs through your account and you agree you will not sell, transfer, license or assign your account, followers, username, or any account rights. You also represent that all information you provide or provided to AutoSystem upon registration and at all other times will be true, accurate, current and complete and you agree to update your information as necessary to maintain its truth and accuracy.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Us Page -->
+        <div id="contact-us-page" class="page">
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg text-center">
+                <h1 class="text-4xl font-bold mb-6">Contact Us</h1>
+                <p class="text-lg text-gray-600 mb-4">Have questions? We'd love to hear from you. Reach out to us via email.</p>
+                <a href="mailto:contactmashab@gmail.com" class="text-2xl font-semibold text-indigo-600 hover:underline">contactmashab@gmail.com</a>
+            </div>
+        </div>
+
+        <!-- About Us Page -->
+        <div id="about-us-page" class="page">
+             <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+                <h1 class="text-4xl font-bold mb-6">About Us</h1>
+                <div class="space-y-4 text-gray-700">
+                    <p>AutoSystem is an innovative platform designed to empower individuals by providing a unique opportunity to earn rewards and build a career path through a simple, automated system.</p>
+                    <p>Our system works by providing our employees with unique, trackable links. On our <strong class="text-indigo-600">Main Page</strong>, you'll find your personalized short links, ready to be shared across the web. The more these links are clicked, the more you progress.</p>
+                    <p>The <strong class="text-indigo-600">Dashboard</strong> is your command center. Here, you can monitor your performance in real-time, seeing exactly how many clicks your links have received. The dashboard also outlines our tiered reward system, from Bronze to Diamond, showing your eligibility and allowing you to claim rewards as you hit your milestones. Reaching the Gold tier is a significant achievement, as it makes you eligible to work with us more formally.</p>
+                    <p>Your <strong class="text-indigo-600">Profile Page</strong> allows you to manage your personal information, ensuring it's always up to date. You can edit your name, update your password, and even upload your CV for future opportunities.</p>
+                    <p>We believe in transparency and flexibility, as outlined in our <strong class="text-indigo-600">Terms and Conditions</strong>. Our goal is to provide a legitimate, part-time work model that fits into your life, helping you to secure a brighter financial future.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white mt-12">
+        <div class="container mx-auto px-6 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-600">&copy; 2024 AutoSystem. All rights reserved.</p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="privacy-policy">Privacy Policy</a>
+                    <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="terms-condition">Terms & Conditions</a>
+                    <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="contact-us">Contact Us</a>
+                    <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="about-us">About Us</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged,
+            signOut,
+            updateProfile,
+            updatePassword
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc,
+            updateDoc,
+            collection,
+            addDoc
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA00mo8NGdqI4-L7Ode-dy0vTda3vExORM",
+            authDomain: "automation-system-e0e57.firebaseapp.com",
+            projectId: "automation-system-e0e57",
+            storageBucket: "automation-system-e0e57.appspot.com",
+            messagingSenderId: "679067303232",
+            appId: "1:679067303232:web:6259337191075947dc0ea5",
+            measurementId: "G-VVDBQHQYHG"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // C++ logic is not directly runnable in a browser.
+        // This function simulates a link shortening process.
+        // In a real-world scenario, this would be a backend API call.
+        function shortenLink(originalUrl, userId, linkId) {
+            // This is a simplified hash function for demonstration.
+            // A real implementation would use a more robust algorithm
+            // and ensure uniqueness.
+            const hash = (s) => {
+                let h = 0;
+                for(let i = 0; i < s.length; i++) {
+                    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+                }
+                return Math.abs(h).toString(36).substring(0, 6);
+            };
+            const shortCode = hash(originalUrl + userId + linkId);
+            // This would be your domain
+            return `https://autosys.short/${shortCode}`;
+        }
+
+
+        // --- Page Navigation ---
+        const pages = document.querySelectorAll('.page');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function showPage(pageId) {
+            pages.forEach(page => {
+                page.classList.toggle('active', page.id === `${pageId}-page`);
+            });
+             // Close mobile menu on navigation
+            document.getElementById('mobile-menu').classList.add('hidden');
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pageId = link.getAttribute('data-page');
+                showPage(pageId);
+            });
+        });
+
+        // --- Mobile Menu ---
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // --- Authentication State ---
+        const loggedInLinks = document.querySelectorAll('[data-page="main"], [data-page="dashboard"], [data-page="profile"], #logout-btn, #mobile-logout-btn');
+        const loggedOutLinks = document.querySelectorAll('[data-page="signin"], [data-page="signup"]');
+        
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                // User is signed in
+                loggedInLinks.forEach(link => link.classList.remove('hidden'));
+                loggedOutLinks.forEach(link => link.classList.add('hidden'));
+                showPage('main');
+                loadUserData(user);
+            } else {
+                // User is signed out
+                loggedInLinks.forEach(link => link.classList.add('hidden'));
+                loggedOutLinks.forEach(link => link.classList.remove('hidden'));
+                showPage('signin');
+            }
+        });
+
+        // --- Sign Up ---
+        const signupForm = document.getElementById('signup-form');
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const signupError = document.getElementById('signup-error');
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                await updateProfile(user, { displayName: name });
+
+                // Create user document in Firestore
+                const userDocRef = doc(db, "users", user.uid);
+                await setDoc(userDocRef, {
+                    name: name,
+                    email: email,
+                    clicks: 0,
+                    claimedRewards: {
+                        bronze: false,
+                        silver: false,
+                        gold: false,
+                        diamond: false
+                    }
+                });
+
+                // Generate short links
+                const originalLinks = [
+                    "https://www.youtube.com/watch?v=vsWxs1tuwDk",
+                    "https://www.linkedin.com/in/zaid-shahwan-2935b22b9/",
+                    "http://proveme.com/"
+                ];
+
+                for (let i = 0; i < originalLinks.length; i++) {
+                    const shortUrl = shortenLink(originalLinks[i], user.uid, `link${i}`);
+                    const linkDocRef = doc(db, `users/${user.uid}/links`, `link${i}`);
+                    await setDoc(linkDocRef, {
+                        original: originalLinks[i],
+                        short: shortUrl,
+                        clicks: 0
+                    });
+                }
+                
+                signupForm.reset();
+                signupError.textContent = '';
+
+            } catch (error) {
+                signupError.textContent = error.message;
+            }
+        });
+
+        // --- Sign In ---
+        const signinForm = document.getElementById('signin-form');
+        signinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signin-email').value;
+            const password = document.getElementById('signin-password').value;
+            const signinError = document.getElementById('signin-error');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                signinForm.reset();
+                signinError.textContent = '';
+            } catch (error) {
+                signinError.textContent = "Invalid email or password.";
+            }
+        });
+
+        // --- Logout ---
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        document.getElementById('mobile-logout-btn').addEventListener('click', () => signOut(auth));
+
+
+        // --- Load User Data ---
+        async function loadUserData(user) {
+            if (!user) return;
+
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                // Main page
+                await displayShortLinks(user.uid);
+                // Dashboard
+                updateDashboard(userData.clicks, userData.claimedRewards);
+                // Profile
+                document.getElementById('profile-name').value = user.displayName || '';
+                document.getElementById('profile-email').value = user.email || '';
+            }
+        }
+
+        // --- Display Short Links (Main Page) ---
+        async function displayShortLinks(userId) {
+            const linksContainer = document.getElementById('short-links-container');
+            linksContainer.innerHTML = ''; // Clear existing links
+            
+            const linksCollectionRef = collection(db, `users/${userId}/links`);
+            // In a real app, you would query this collection. For this demo, we'll assume 3 links.
+            for (let i = 0; i < 3; i++) {
+                 const linkDocRef = doc(db, `users/${userId}/links`, `link${i}`);
+                 const linkDoc = await getDoc(linkDocRef);
+                 if(linkDoc.exists()){
+                     const linkData = linkDoc.data();
+                     const linkCard = `
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <p class="text-sm text-gray-500 truncate">Original: ${linkData.original}</p>
+                            <a href="${linkData.short}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline">${linkData.short}</a>
+                            <p class="text-gray-700 mt-2">Clicks: <span class="font-bold">${linkData.clicks}</span></p>
+                            <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${linkData.short}">Copy Link</button>
+                        </div>
+                     `;
+                     linksContainer.innerHTML += linkCard;
+                 }
+            }
+
+            document.querySelectorAll('.copy-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const linkToCopy = button.getAttribute('data-link');
+                    // Using the clipboard API requires a secure context (https)
+                    // This is a fallback for http/local development
+                    const textArea = document.createElement('textarea');
+                    textArea.value = linkToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        button.textContent = 'Copied!';
+                        setTimeout(() => { button.textContent = 'Copy Link'; }, 2000);
+                    } catch (err) {
+                        console.error('Fallback: Oops, unable to copy', err);
+                    }
+                    document.body.removeChild(textArea);
+                });
+            });
+        }
+
+        // --- Update Dashboard ---
+        function updateDashboard(clicks, claimedRewards) {
+            document.getElementById('total-clicks').textContent = clicks;
+
+            const tiers = {
+                bronze: 7500,
+                silver: 15000,
+                gold: 50000,
+                diamond: 100000
+            };
+
+            // Bronze
+            const bronzeProgress = Math.min((clicks / tiers.bronze) * 100, 100);
+            document.getElementById('bronze-progress').style.width = `${bronzeProgress}%`;
+            const claimBronzeBtn = document.getElementById('claim-bronze');
+            if (clicks >= tiers.bronze && !claimedRewards.bronze) {
+                claimBronzeBtn.disabled = false;
+                claimBronzeBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                claimBronzeBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+            } else if (claimedRewards.bronze) {
+                 claimBronzeBtn.textContent = 'Claimed';
+                 claimBronzeBtn.disabled = true;
+                 claimBronzeBtn.classList.add('bg-green-500', 'cursor-not-allowed');
+            }
+
+            // Silver
+            const silverProgress = Math.min((clicks / tiers.silver) * 100, 100);
+            document.getElementById('silver-progress').style.width = `${silverProgress}%`;
+            const claimSilverBtn = document.getElementById('claim-silver');
+            if (clicks >= tiers.silver && !claimedRewards.silver) {
+                claimSilverBtn.disabled = false;
+                claimSilverBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                claimSilverBtn.classList.add('bg-gray-500', 'hover:bg-gray-600');
+            } else if (claimedRewards.silver) {
+                 claimSilverBtn.textContent = 'Claimed';
+                 claimSilverBtn.disabled = true;
+                 claimSilverBtn.classList.add('bg-green-500', 'cursor-not-allowed');
+            }
+
+
+            // Gold
+            const goldProgress = Math.min((clicks / tiers.gold) * 100, 100);
+            document.getElementById('gold-progress').style.width = `${goldProgress}%`;
+            const claimGoldBtn = document.getElementById('claim-gold');
+            if (clicks >= tiers.gold && !claimedRewards.gold) {
+                claimGoldBtn.disabled = false;
+                claimGoldBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                claimGoldBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+            } else if (claimedRewards.gold) {
+                 claimGoldBtn.textContent = 'Claimed';
+                 claimGoldBtn.disabled = true;
+                 claimGoldBtn.classList.add('bg-green-500', 'cursor-not-allowed');
+            }
+
+
+            // Diamond
+            const diamondProgress = Math.min((clicks / tiers.diamond) * 100, 100);
+            document.getElementById('diamond-progress').style.width = `${diamondProgress}%`;
+            const claimDiamondBtn = document.getElementById('claim-diamond');
+            if (clicks >= tiers.diamond && !claimedRewards.diamond) {
+                claimDiamondBtn.disabled = false;
+                claimDiamondBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                claimDiamondBtn.classList.add('bg-blue-400', 'hover:bg-blue-500');
+            } else if (claimedRewards.diamond) {
+                 claimDiamondBtn.textContent = 'Claimed';
+                 claimDiamondBtn.disabled = true;
+                 claimDiamondBtn.classList.add('bg-green-500', 'cursor-not-allowed');
+            }
+
+        }
+        
+        // --- Claim Reward Logic ---
+        async function claimReward(tier) {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            const userDocRef = doc(db, "users", user.uid);
+            const updateData = {};
+            updateData[`claimedRewards.${tier}`] = true;
+
+            await updateDoc(userDocRef, updateData);
+            
+            const userDoc = await getDoc(userDocRef);
+            if(userDoc.exists()){
+                 updateDashboard(userDoc.data().clicks, userDoc.data().claimedRewards);
+            }
+            alert(`You have successfully claimed the ${tier} reward!`);
+        }
+
+        document.getElementById('claim-bronze').addEventListener('click', () => claimReward('bronze'));
+        document.getElementById('claim-silver').addEventListener('click', () => claimReward('silver'));
+        document.getElementById('claim-gold').addEventListener('click', () => claimReward('gold'));
+        document.getElementById('claim-diamond').addEventListener('click', () => claimReward('diamond'));
+
+
+        // --- Profile Update ---
+        const profileForm = document.getElementById('profile-form');
+        profileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const name = document.getElementById('profile-name').value;
+            const newPassword = document.getElementById('profile-password').value;
+            const cvFile = document.getElementById('profile-cv').files[0];
+            const profileMessage = document.getElementById('profile-message');
+            const uploadStatus = document.getElementById('cv-upload-status');
+            
+            profileMessage.textContent = 'Updating...';
+
+            try {
+                // Update display name
+                if (name !== user.displayName) {
+                    await updateProfile(user, { displayName: name });
+                    const userDocRef = doc(db, "users", user.uid);
+                    await updateDoc(userDocRef, { name: name });
+                }
+
+                // Update password
+                if (newPassword) {
+                    await updatePassword(user, newPassword);
+                }
+
+                // Upload CV
+                if (cvFile) {
+                    uploadStatus.textContent = 'Uploading CV...';
+                    const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
+                    await uploadBytes(storageRef, cvFile);
+                    const downloadURL = await getDownloadURL(storageRef);
+                    const userDocRef = doc(db, "users", user.uid);
+                    await updateDoc(userDocRef, { cvUrl: downloadURL });
+                    uploadStatus.textContent = 'CV uploaded successfully!';
+                }
+
+                profileMessage.textContent = 'Profile updated successfully!';
+                document.getElementById('profile-password').value = '';
+                setTimeout(() => { profileMessage.textContent = ''; uploadStatus.textContent = ''; }, 3000);
+
+            } catch (error) {
+                profileMessage.textContent = `Error: ${error.message}`;
+                profileMessage.classList.remove('text-green-500');
+                profileMessage.classList.add('text-red-500');
+            }
+        });
+        
+        // Initial page load
+        showPage('signin');
+
+    </script>
+</body>
+</html>
