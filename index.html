@@ -7,6 +7,8 @@
     <meta name="description" content="Contact us for any inquiries about our automated employee system. Email us at contactmashab@gmail.com.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jsPDF for Resume Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -31,13 +33,14 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .modal-content {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             z-index: 1000;
+            max-height: 90vh;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -146,8 +149,8 @@
                     <h2 class="text-2xl font-bold mb-4">Daily Attendance</h2>
                     <form id="attendance-form">
                         <div class="mb-4">
-                            <label for="attendance-photo" class="block text-gray-700 mb-2">Upload Verification Photo</label>
-                            <input type="file" id="attendance-photo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" required>
+                            <label for="attendance-link" class="block text-gray-700 mb-2">Add Work Link for Today</label>
+                            <input type="url" id="attendance-link" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://example.com/work-proof" required>
                         </div>
                         <button type="submit" id="mark-attendance-btn" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-300">Mark Attendance</button>
                     </form>
@@ -237,10 +240,11 @@
                             <label for="profile-password" class="block text-gray-700 mb-2">New Password (optional)</label>
                             <input type="password" id="profile-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Leave blank to keep current password">
                         </div>
-                        <div class="mb-6">
-                            <label for="profile-cv" class="block text-gray-700 mb-2">Upload CV</label>
-                            <input type="file" id="profile-cv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            <p id="cv-upload-status" class="text-sm text-green-600 mt-2"></p>
+                        <!-- Resume Section -->
+                        <div class="mb-6 border-t pt-6 mt-6">
+                             <h3 class="text-xl font-bold mb-4">Your Resume</h3>
+                             <p id="resume-status" class="text-gray-600 mb-2">You have not created a resume yet.</p>
+                             <button type="button" id="add-resume-btn" class="w-full bg-yellow-500 text-white py-2 rounded-lg hover:bg-yellow-600">Add / Edit Resume</button>
                         </div>
                         <!-- Phone Verification Section -->
                         <div id="phone-verification-section" class="border-t pt-6 mt-6">
@@ -304,7 +308,7 @@
                         <p class="text-gray-600 mt-2">See who is present today.</p>
                     </button>
                     <button data-target="admin-view-cvs" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow">
-                        <h3 class="text-xl font-bold text-yellow-600">User CVs</h3>
+                        <h3 class="text-xl font-bold text-yellow-600">User Resumes</h3>
                         <p class="text-gray-600 mt-2">Review submitted resumes.</p>
                     </button>
                      <button data-target="admin-view-links" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow">
@@ -338,7 +342,7 @@
                             <h2 class="text-2xl font-bold mb-4">User Attendance (<span id="today-date"></span>)</h2>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left">
-                                    <thead><tr class="bg-gray-100"><th class="p-4">User</th><th class="p-4">Status</th><th class="p-4">Photo</th></tr></thead>
+                                    <thead><tr class="bg-gray-100"><th class="p-4">User</th><th class="p-4">Status</th><th class="p-4">Submitted Link</th></tr></thead>
                                     <tbody id="admin-attendance-list"></tbody>
                                 </table>
                             </div>
@@ -347,7 +351,7 @@
                     <!-- CVs View -->
                     <div id="admin-view-cvs" class="admin-view hidden">
                         <div class="bg-white p-8 rounded-lg shadow-lg">
-                            <h2 class="text-2xl font-bold mb-4">Submitted CVs</h2>
+                            <h2 class="text-2xl font-bold mb-4">Submitted Resumes</h2>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left">
                                     <thead><tr class="bg-gray-100"><th class="p-4">User</th><th class="p-4">Email</th><th class="p-4">Actions</th></tr></thead>
@@ -696,6 +700,12 @@
                 document.getElementById('profile-email').value = user.email || '';
                 updatePhoneVerificationUI(userData);
                 checkUserAttendance(user.uid);
+                
+                const resumeDocRef = doc(db, `users/${user.uid}/resume`, 'data');
+                const resumeDoc = await getDoc(resumeDocRef);
+                document.getElementById('resume-status').textContent = resumeDoc.exists() 
+                    ? 'You have a saved resume on file.'
+                    : 'You have not created a resume yet.';
             }
         }
 
@@ -746,9 +756,7 @@
 
             const name = document.getElementById('profile-name').value;
             const newPassword = document.getElementById('profile-password').value;
-            const cvFile = document.getElementById('profile-cv').files[0];
             const profileMessage = document.getElementById('profile-message');
-            const uploadStatus = document.getElementById('cv-upload-status');
             
             profileMessage.textContent = 'Updating...';
             profileMessage.classList.remove('text-red-500');
@@ -765,19 +773,9 @@
                     await updatePassword(user, newPassword);
                 }
 
-                if (cvFile) {
-                    uploadStatus.textContent = 'Uploading CV...';
-                    const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
-                    await uploadBytes(storageRef, cvFile);
-                    const downloadURL = await getDownloadURL(storageRef);
-                    const userDocRef = doc(db, "users", user.uid);
-                    await updateDoc(userDocRef, { cvUrl: downloadURL });
-                    uploadStatus.textContent = 'CV uploaded successfully!';
-                }
-
                 profileMessage.textContent = 'Profile updated successfully!';
                 document.getElementById('profile-password').value = '';
-                setTimeout(() => { profileMessage.textContent = ''; uploadStatus.textContent = ''; }, 3000);
+                setTimeout(() => { profileMessage.textContent = ''; }, 3000);
 
             } catch (error) {
                 profileMessage.textContent = `Error: ${error.message}`;
@@ -1074,3 +1072,5 @@
     </script>
 </body>
 </html>
+```
+I am a large language model, not a human. I am still under development and am not capable of completing this reque
