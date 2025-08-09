@@ -57,6 +57,19 @@
         .modal-content::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        /* Simple spinner for loading states */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4f46e5;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -123,7 +136,9 @@
                             <label for="signin-password" class="block text-gray-700 mb-2">Password</label>
                             <input type="password" id="signin-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                         </div>
-                        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Sign In</button>
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300 flex justify-center items-center">
+                            <span class="btn-text">Sign In</span>
+                        </button>
                     </form>
                     <div class="text-center mt-4">
                         <a href="#" id="forgot-password-link" class="text-sm text-indigo-600 hover:underline">Forgot Password?</a>
@@ -150,7 +165,9 @@
                             <label for="signup-password" class="block text-gray-700 mb-2">Password</label>
                             <input type="password" id="signup-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                         </div>
-                        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Sign Up</button>
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300 flex justify-center items-center">
+                             <span class="btn-text">Sign Up</span>
+                        </button>
                     </form>
                      <p class="text-center mt-4">Already have an account? <a href="#" class="text-indigo-600 hover:underline nav-link" data-page="signin">Sign In</a></p>
                     <div id="signup-error" class="text-red-500 mt-4 text-center"></div>
@@ -175,7 +192,11 @@
                 <h1 class="text-4xl font-bold mb-4">Your Short Links</h1>
                 <p class="text-lg text-gray-600 mb-8">Share these links to track clicks and earn rewards.</p>
                 <div id="short-links-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Short links will be dynamically inserted here -->
+                    <!-- Loading state -->
+                    <div class="col-span-full text-center p-8">
+                        <div class="spinner mx-auto"></div>
+                        <p class="mt-4 text-gray-600">Loading your links...</p>
+                    </div>
                 </div>
             </div>
 
@@ -504,7 +525,8 @@
             orderBy,
             limit,
             deleteDoc,
-            runTransaction
+            runTransaction,
+            writeBatch
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
        
         // Your web app's Firebase configuration
@@ -523,6 +545,19 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const { jsPDF } = window.jspdf;
+
+        // --- UI Helper Functions ---
+        function showLoading(button, text = "Loading...") {
+            button.disabled = true;
+            const btnText = button.querySelector('.btn-text');
+            if(btnText) btnText.textContent = text;
+        }
+
+        function hideLoading(button, text) {
+            button.disabled = false;
+            const btnText = button.querySelector('.btn-text');
+            if(btnText) btnText.textContent = text;
+        }
 
         // --- Generic Modal ---
         function showCustomModal(title, content, showClose = true) {
@@ -563,7 +598,6 @@
         }
         
         function getShortUrl(shortCode) {
-            // Use the current page's origin and pathname for robust redirection
             const baseUrl = window.location.origin + window.location.pathname;
             return `${baseUrl}#/redirect/${shortCode}`;
         }
@@ -588,7 +622,6 @@
                         
                         try {
                             const userDocRef = doc(db, "users", ownerId);
-                            // The link could be a global link or a user-specific one. We don't need to know which, just increment the count.
                             const linkDocRef = doc(db, `users/${ownerId}/links`, linkId);
 
                             await runTransaction(db, async (transaction) => {
@@ -596,16 +629,14 @@
                                 if (!userDoc.exists()) {
                                     throw "User document does not exist!";
                                 }
+                                const newTotalClicks = (userDoc.data().clicks || 0) + 1;
+                                transaction.update(userDocRef, { clicks: newTotalClicks });
 
-                                // We still record clicks on the user's specific link document for individual tracking
                                 const linkDoc = await transaction.get(linkDocRef);
                                 if(linkDoc.exists()){
                                     const newLinkClicks = (linkDoc.data().clicks || 0) + 1;
                                     transaction.update(linkDocRef, { clicks: newLinkClicks });
                                 }
-
-                                const newTotalClicks = (userDoc.data().clicks || 0) + 1;
-                                transaction.update(userDocRef, { clicks: newTotalClicks });
                             });
                             
                             window.location.replace(original);
@@ -673,7 +704,7 @@
                     loadUserData(user);
                     if (unsubscribeNotifications) unsubscribeNotifications();
                     if (unsubscribeDirectMessages) unsubscribeDirectMessages();
-                    listenForNotifications(user.uid); // This now sets up both listeners
+                    listenForNotifications(user.uid);
                 }
             } else {
                 if (!window.location.hash.startsWith('#/redirect/')) {
@@ -691,6 +722,8 @@
         const signupForm = document.getElementById('signup-form');
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = signupForm.querySelector('button[type="submit"]');
+            showLoading(submitBtn, "Signing Up...");
             const name = document.getElementById('signup-name').value;
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
@@ -711,17 +744,36 @@
                     phoneVerified: false,
                     phoneOtp: '',
                     claimedRewards: { starter: false, bronze: false, silver: false, gold: false, diamond: false },
-                    seenNotifications: [], // For broadcast messages
-                    seenDirectMessages: [] // For direct messages
+                    seenNotifications: [],
+                    seenDirectMessages: []
                 });
                 
-                // NOTE: No longer need to copy global links. They are fetched live.
+                // For every global link that exists, create a corresponding link document for this new user.
+                const globalLinksQuery = query(collection(db, "global_links"));
+                const globalLinksSnapshot = await getDocs(globalLinksQuery);
+                const batch = writeBatch(db);
+
+                globalLinksSnapshot.forEach(linkDoc => {
+                    const linkData = linkDoc.data();
+                    const linkId = linkDoc.id;
+                    const shortCode = generateShortCode(linkData.original, user.uid, linkId);
+                    const shortUrl = getShortUrl(shortCode);
+                    
+                    const userLinkDocRef = doc(db, `users/${user.uid}/links`, linkId);
+                    batch.set(userLinkDocRef, { original: linkData.original, short: shortUrl, clicks: 0, global: true });
+                    
+                    const shortLinkDocRef = doc(db, "shortlinks", shortCode);
+                    batch.set(shortLinkDocRef, { original: linkData.original, ownerId: user.uid, linkId: linkId });
+                });
+                await batch.commit();
                 
                 signupForm.reset();
                 signupError.textContent = '';
 
             } catch (error) {
                 signupError.textContent = error.message;
+            } finally {
+                hideLoading(submitBtn, "Sign Up");
             }
         });
 
@@ -729,6 +781,8 @@
         const signinForm = document.getElementById('signin-form');
         signinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = signinForm.querySelector('button[type="submit"]');
+            showLoading(submitBtn, "Signing In...");
             const email = document.getElementById('signin-email').value;
             const password = document.getElementById('signin-password').value;
             const signinError = document.getElementById('signin-error');
@@ -739,6 +793,8 @@
                 signinError.textContent = '';
             } catch (error) {
                 signinError.textContent = "Invalid email or password.";
+            } finally {
+                hideLoading(submitBtn, "Sign In");
             }
         });
         
@@ -764,18 +820,16 @@
         // --- Load User Data ---
         function loadUserData(user) {
             if (!user) return;
-            if (unsubscribeUserData) unsubscribeUserData(); // Unsubscribe from previous listener
+            if (unsubscribeUserData) unsubscribeUserData();
 
             const userDocRef = doc(db, "users", user.uid);
             
-            // Listen for real-time updates to user data
             unsubscribeUserData = onSnapshot(userDocRef, async (userDoc) => {
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
                     
-                    // Update UI components that depend on user data
                     await displayShortLinks(user.uid);
-                    updateDashboard(userData.clicks, userData.claimedRewards || {});
+                    updateDashboard(userData.clicks || 0, userData.claimedRewards || {});
                     updatePhoneVerificationUI(userData);
                     checkUserAttendance(user.uid);
 
@@ -787,74 +841,61 @@
                     document.getElementById('resume-status').textContent = resumeDoc.exists() 
                         ? 'You have a saved resume on file.'
                         : 'You have not created a resume yet.';
+                } else {
+                    console.log("User document not found!");
                 }
+            }, (error) => {
+                console.error("Error listening to user data:", error);
+                // Optionally show an error to the user
             });
         }
 
         // --- Display Short Links (Main Page) ---
-        // Refactored to fetch global and user links separately
         async function displayShortLinks(userId) {
             const linksContainer = document.getElementById('short-links-container');
-            linksContainer.innerHTML = '<p class="text-gray-600 col-span-full">Loading links...</p>';
-
-            // 1. Fetch global links
-            const globalLinksQuery = query(collection(db, "global_links"));
-            const globalLinksSnapshot = await getDocs(globalLinksQuery);
-            const globalLinks = globalLinksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'global' }));
-
-            // 2. Fetch user-specific links (if any in the future)
-            const userLinksQuery = query(collection(db, `users/${userId}/links`));
-            const userLinksSnapshot = await getDocs(userLinksQuery);
-            const userLinks = userLinksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'user' }));
+            const linksQuery = query(collection(db, `users/${userId}/links`));
             
-            // 3. Combine and render
-            const allLinks = [...globalLinks, ...userLinks];
-            linksContainer.innerHTML = ''; 
-
-            if (allLinks.length === 0) {
-                linksContainer.innerHTML = '<p class="text-gray-600 col-span-full">No links have been assigned to you yet.</p>';
-                return;
-            }
-
-            // Create user-specific short URLs for global links on the fly
-            allLinks.forEach(linkData => {
-                const linkId = linkData.id;
-                const shortCode = generateShortCode(linkData.original, userId, linkId);
-                const shortUrl = getShortUrl(shortCode);
-
-                // We need to get the click count for this user's specific version of the link
-                // This part is tricky without duplicating data. For now, we'll show global clicks as 0 for simplicity.
-                // A better model would have a subcollection for clicks on each global link.
-                const clickCount = linkData.type === 'user' ? linkData.clicks : 0;
-
-                const linkCard = `
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <p class="text-sm text-gray-500 truncate">Original: ${linkData.original}</p>
-                        <a href="${shortUrl}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline break-all">${shortUrl}</a>
-                        <p class="text-gray-700 mt-2">Clicks: <span class="font-bold">${clickCount}</span></p>
-                        <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${shortUrl}">Copy Link</button>
-                    </div>
-                `;
-                linksContainer.innerHTML += linkCard;
-            });
-
-            document.querySelectorAll('.copy-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const linkToCopy = button.getAttribute('data-link');
-                    const textArea = document.createElement("textarea");
-                    textArea.value = linkToCopy;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    try {
-                        document.execCommand('copy');
-                        button.textContent = 'Copied!';
-                    } catch (err) {
-                        console.error('Fallback: Oops, unable to copy', err);
-                        button.textContent = 'Error!';
-                    }
-                    document.body.removeChild(textArea);
-                    setTimeout(() => { button.textContent = 'Copy Link'; }, 2000);
+            onSnapshot(linksQuery, (linksSnapshot) => {
+                linksContainer.innerHTML = ''; 
+                if (linksSnapshot.empty) {
+                    linksContainer.innerHTML = '<p class="text-gray-600 col-span-full">No links have been assigned to you yet.</p>';
+                    return;
+                }
+                
+                linksSnapshot.forEach(doc => {
+                    const linkData = doc.data();
+                    const linkCard = `
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <p class="text-sm text-gray-500 truncate" title="${linkData.original}">Original: ${linkData.original}</p>
+                            <a href="${linkData.short}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline break-all">${linkData.short}</a>
+                            <p class="text-gray-700 mt-2">Clicks: <span class="font-bold">${linkData.clicks || 0}</span></p>
+                            <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${linkData.short}">Copy Link</button>
+                        </div>
+                    `;
+                    linksContainer.innerHTML += linkCard;
                 });
+
+                document.querySelectorAll('.copy-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const linkToCopy = button.getAttribute('data-link');
+                        const textArea = document.createElement("textarea");
+                        textArea.value = linkToCopy;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        try {
+                            document.execCommand('copy');
+                            button.textContent = 'Copied!';
+                        } catch (err) {
+                            console.error('Fallback: Oops, unable to copy', err);
+                            button.textContent = 'Error!';
+                        }
+                        document.body.removeChild(textArea);
+                        setTimeout(() => { button.textContent = 'Copy Link'; }, 2000);
+                    });
+                });
+            }, (error) => {
+                console.error("Error fetching links:", error);
+                linksContainer.innerHTML = '<p class="text-red-500 col-span-full">Could not load links. Please try again later.</p>';
             });
         }
 
@@ -923,8 +964,9 @@
             const phone = document.getElementById('profile-phone').value;
             const messageEl = document.getElementById('phone-verification-message');
             
-            if (!phone) {
-                messageEl.textContent = 'Please enter a phone number.';
+            // Basic phone number validation
+            if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
+                messageEl.textContent = 'Please enter a valid phone number in E.164 format (e.g., +14155552671).';
                 messageEl.className = 'mt-4 text-center text-red-500';
                 return;
             }
@@ -947,7 +989,7 @@
             const userData = userDoc.data();
             
             if (otp && otp === userData.phoneOtp) {
-                await updateDoc(userDocRef, { phoneVerified: true, phoneOtp: '' }); // Clear OTP after verification
+                await updateDoc(userDocRef, { phoneVerified: true, phoneOtp: '' });
                 messageEl.textContent = 'Phone verified successfully!';
                 messageEl.className = 'mt-4 text-center text-green-500';
                 updatePhoneVerificationUI({ ...userData, phoneVerified: true });
@@ -1014,26 +1056,32 @@
 
         // --- Attendance ---
         async function checkUserAttendance(userId) {
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const today = new Date().toISOString().split('T')[0];
             const attendanceDocRef = doc(db, `users/${userId}/attendance`, today);
-            const attendanceDoc = await getDoc(attendanceDocRef);
             const statusEl = document.getElementById('attendance-status');
             const buttonEl = document.getElementById('mark-attendance-btn');
 
-            if (attendanceDoc.exists()) {
-                statusEl.textContent = `Attendance marked for today at ${attendanceDoc.data().timestamp.toDate().toLocaleTimeString()}`;
-                statusEl.className = 'mt-4 text-center font-semibold text-green-600';
-                buttonEl.disabled = true;
-                buttonEl.textContent = 'Attendance Marked';
-                buttonEl.classList.add('bg-gray-400', 'cursor-not-allowed');
-                buttonEl.classList.remove('bg-green-600', 'hover:bg-green-700');
-            } else {
-                statusEl.textContent = 'You have not marked your attendance for today.';
-                statusEl.className = 'mt-4 text-center font-semibold text-red-600';
-                buttonEl.disabled = false;
-                buttonEl.textContent = 'Mark Attendance';
-                buttonEl.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                buttonEl.classList.add('bg-green-600', 'hover:bg-green-700');
+            try {
+                const attendanceDoc = await getDoc(attendanceDocRef);
+                if (attendanceDoc.exists()) {
+                    statusEl.textContent = `Attendance marked for today at ${attendanceDoc.data().timestamp.toDate().toLocaleTimeString()}`;
+                    statusEl.className = 'mt-4 text-center font-semibold text-green-600';
+                    buttonEl.disabled = true;
+                    buttonEl.textContent = 'Attendance Marked';
+                    buttonEl.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    buttonEl.classList.remove('bg-green-600', 'hover:bg-green-700');
+                } else {
+                    statusEl.textContent = 'You have not marked your attendance for today.';
+                    statusEl.className = 'mt-4 text-center font-semibold text-red-600';
+                    buttonEl.disabled = false;
+                    buttonEl.textContent = 'Mark Attendance';
+                    buttonEl.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    buttonEl.classList.add('bg-green-600', 'hover:bg-green-700');
+                }
+            } catch (error) {
+                console.error("Error checking attendance:", error);
+                statusEl.textContent = 'Could not check attendance status.';
+                statusEl.className = 'mt-4 text-center font-semibold text-red-500';
             }
         }
 
@@ -1051,7 +1099,7 @@
                     link: workLink,
                     timestamp: Timestamp.now()
                 });
-                checkUserAttendance(user.uid); // Re-check to update UI
+                checkUserAttendance(user.uid);
             } catch (error) {
                 console.error("Error marking attendance: ", error);
                 document.getElementById('attendance-status').textContent = 'Error: Could not mark attendance.';
@@ -1143,6 +1191,9 @@
             const password = document.getElementById('admin-password').value;
             const errorEl = document.getElementById('admin-login-error');
 
+            // **SECURITY WARNING:** This is a hardcoded password for demonstration only.
+            // In a real application, you should use Firebase Authentication with custom claims
+            // to securely identify and authorize administrators.
             if (email === 'admin@system.com' && password === '123') {
                 errorEl.textContent = '';
                 showPage('admin-dashboard', true);
@@ -1167,7 +1218,6 @@
                     const targetId = btn.dataset.target;
                     adminViews.forEach(view => view.classList.toggle('hidden', view.id !== targetId));
                     
-                    // Load data for the selected view
                     if (targetId === 'admin-view-users') loadAllUsers();
                     if (targetId === 'admin-view-attendance') loadAdminAttendance();
                     if (targetId === 'admin-view-cvs') loadAdminCVs();
@@ -1175,54 +1225,58 @@
                 });
             });
             
-            // Initially load the first view
             loadAllUsers();
         }
         
         async function loadAllUsers() {
              const userListBody = document.getElementById('admin-all-users-list');
             userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Loading...</td></tr>';
-            const usersCollectionRef = collection(db, "users");
-            const userSnapshot = await getDocs(usersCollectionRef);
-            let users = userSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            
-            function renderUsers(userArray) {
-                userListBody.innerHTML = '';
-                if (userArray.length === 0) {
-                    userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No users found.</td></tr>';
-                    return;
+            try {
+                const usersCollectionRef = collection(db, "users");
+                const userSnapshot = await getDocs(usersCollectionRef);
+                let users = userSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                
+                function renderUsers(userArray) {
+                    userListBody.innerHTML = '';
+                    if (userArray.length === 0) {
+                        userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No users found.</td></tr>';
+                        return;
+                    }
+                    userArray.forEach(user => {
+                        const phoneStatus = user.phoneVerified 
+                            ? `<span class="text-green-600 font-semibold">Verified</span>` 
+                            : (user.phone ? `<span class="text-yellow-600 font-semibold">Pending</span>` : `<span>Not Added</span>`);
+                        const row = document.createElement('tr');
+                        row.className = 'border-b';
+                        row.innerHTML = `
+                            <td class="p-4"><div class="font-semibold">${user.name}</div><div class="text-sm text-gray-500">${user.email}</div></td>
+                            <td class="p-4">${user.phone || 'N/A'} (${phoneStatus})</td>
+                            <td class="p-4 font-bold">${user.clicks || 0}</td>
+                            <td class="p-4"><button data-userid="${user.id}" class="details-btn bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">Details</button></td>
+                        `;
+                        userListBody.appendChild(row);
+                    });
                 }
-                userArray.forEach(user => {
-                    const phoneStatus = user.phoneVerified 
-                        ? `<span class="text-green-600 font-semibold">Verified</span>` 
-                        : (user.phone ? `<span class="text-yellow-600 font-semibold">Pending</span>` : `<span>Not Added</span>`);
-                    const row = document.createElement('tr');
-                    row.className = 'border-b';
-                    row.innerHTML = `
-                        <td class="p-4"><div class="font-semibold">${user.name}</div><div class="text-sm text-gray-500">${user.email}</div></td>
-                        <td class="p-4">${user.phone || 'N/A'} (${phoneStatus})</td>
-                        <td class="p-4 font-bold">${user.clicks || 0}</td>
-                        <td class="p-4"><button data-userid="${user.id}" class="details-btn bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">Details</button></td>
-                    `;
-                    userListBody.appendChild(row);
+                
+                renderUsers(users);
+                
+                document.getElementById('admin-user-search').addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm));
+                    renderUsers(filteredUsers);
                 });
-            }
-            
-            renderUsers(users);
-            
-            document.getElementById('admin-user-search').addEventListener('input', (e) => {
-                const searchTerm = e.target.value.toLowerCase();
-                const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm));
-                renderUsers(filteredUsers);
-            });
 
-            userListBody.addEventListener('click', e => {
-                if (e.target.classList.contains('details-btn')) {
-                    const userId = e.target.dataset.userid;
-                    const userData = users.find(u => u.id === userId);
-                    openUserDetailsModal(userData);
-                }
-            });
+                userListBody.addEventListener('click', e => {
+                    if (e.target.classList.contains('details-btn')) {
+                        const userId = e.target.dataset.userid;
+                        const userData = users.find(u => u.id === userId);
+                        openUserDetailsModal(userData);
+                    }
+                });
+            } catch (error) {
+                console.error("Error loading users:", error);
+                userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Could not load users.</td></tr>';
+            }
         }
         
         async function openUserDetailsModal(user) {
@@ -1260,43 +1314,20 @@
                 modalsContainer.innerHTML = '';
             });
 
-            // --- OTP Generation and Backend Explanation ---
             if (document.getElementById('generate-otp-btn')) {
                 document.getElementById('generate-otp-btn').addEventListener('click', async () => {
-                    // **DEVELOPER NOTE ON AUTOMATIC OTP SENDING**
-                    // The following code generates an OTP and saves it to Firestore. It then displays
-                    // it on the ADMIN'S screen. This is a secure, manual fallback.
-                    //
-                    // **To automate this**, you CANNOT send an SMS from client-side JavaScript.
-                    // Doing so would expose your SMS provider's API keys.
-                    //
-                    // **THE CORRECT APPROACH:**
-                    // 1. Create a Firebase Cloud Function (e.g., `sendOtpOnRequest`).
-                    // 2. This function would be triggered by an event, like a new document being created
-                    //    in a `otp_requests` collection, or by being called directly from the client.
-                    // 3. Inside the Cloud Function (which runs on a secure server):
-                    //    a. Generate the OTP.
-                    //    b. Use an SMS service provider's SDK (like Twilio or Vonage) with your secure API keys.
-                    //    c. Call the service to send the OTP to the user's phone number.
-                    //    d. Save the generated OTP to the user's document in Firestore so it can be verified.
-                    //
-                    // The JSON template you provided is what you would use to configure such a service.
-                    // This client-side code CANNOT use that template directly and securely.
-
                     const otp = Math.floor(1000 + Math.random() * 9000).toString();
                     const userDocRef = doc(db, "users", user.id);
                     await updateDoc(userDocRef, { phoneOtp: otp });
-                    document.getElementById('otp-display').innerHTML = `<p class="text-green-600">OTP Generated: <strong class="text-lg">${otp}</strong>. Please provide this to the user to enter on their profile page.</p>`;
+                    document.getElementById('otp-display').innerHTML = `<p class="text-green-600">OTP Generated: <strong class="text-lg">${otp}</strong>. Please provide this to the user.</p>`;
                     document.getElementById('generate-otp-btn').style.display = 'none';
                 });
             }
             
-            // --- Direct Message Logic (FIXED) ---
             document.getElementById('send-direct-message-btn').addEventListener('click', async () => {
                 const message = document.getElementById('direct-message-text').value;
                 if (!message) return;
                 
-                // Send message to the user-specific "direct_messages" subcollection
                 const messageRef = collection(db, `users/${user.id}/direct_messages`);
                 await addDoc(messageRef, {
                     message: message,
@@ -1318,41 +1349,46 @@
             document.getElementById('today-date').textContent = new Date().toLocaleDateString();
             listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">Loading...</td></tr>';
 
-            const usersCollectionRef = collection(db, "users");
-            const userSnapshot = await getDocs(usersCollectionRef);
-            let attendanceData = [];
+            try {
+                const usersCollectionRef = collection(db, "users");
+                const userSnapshot = await getDocs(usersCollectionRef);
+                let attendanceData = [];
 
-            for (const userDoc of userSnapshot.docs) {
-                const user = { id: userDoc.id, ...userDoc.data() };
-                const attendanceDocRef = doc(db, `users/${user.id}/attendance`, today);
-                const attendanceDoc = await getDoc(attendanceDocRef);
-                
-                attendanceData.push({
-                    name: user.name,
-                    email: user.email,
-                    present: attendanceDoc.exists(),
-                    link: attendanceDoc.exists() ? attendanceDoc.data().link : 'N/A'
+                for (const userDoc of userSnapshot.docs) {
+                    const user = { id: userDoc.id, ...userDoc.data() };
+                    const attendanceDocRef = doc(db, `users/${user.id}/attendance`, today);
+                    const attendanceDoc = await getDoc(attendanceDocRef);
+                    
+                    attendanceData.push({
+                        name: user.name,
+                        email: user.email,
+                        present: attendanceDoc.exists(),
+                        link: attendanceDoc.exists() ? attendanceDoc.data().link : 'N/A'
+                    });
+                }
+
+                listBody.innerHTML = '';
+                if (attendanceData.length === 0) {
+                     listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">No users found.</td></tr>';
+                     return;
+                }
+
+                attendanceData.forEach(item => {
+                    const status = item.present ? '<span class="text-green-600 font-bold">Present</span>' : '<span class="text-red-600">Absent</span>';
+                    const link = item.present ? `<a href="${item.link}" target="_blank" class="text-indigo-600 hover:underline">${item.link}</a>` : 'N/A';
+                    const row = `
+                        <tr class="border-b">
+                            <td class="p-4"><div class="font-semibold">${item.name}</div><div class="text-sm text-gray-500">${item.email}</div></td>
+                            <td class="p-4">${status}</td>
+                            <td class="p-4 truncate" style="max-width: 300px;">${link}</td>
+                        </tr>
+                    `;
+                    listBody.innerHTML += row;
                 });
+            } catch (error) {
+                console.error("Error loading attendance:", error);
+                listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Could not load attendance data.</td></tr>';
             }
-
-            listBody.innerHTML = '';
-            if (attendanceData.length === 0) {
-                 listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">No users found.</td></tr>';
-                 return;
-            }
-
-            attendanceData.forEach(item => {
-                const status = item.present ? '<span class="text-green-600 font-bold">Present</span>' : '<span class="text-red-600">Absent</span>';
-                const link = item.present ? `<a href="${item.link}" target="_blank" class="text-indigo-600 hover:underline">${item.link}</a>` : 'N/A';
-                const row = `
-                    <tr class="border-b">
-                        <td class="p-4"><div class="font-semibold">${item.name}</div><div class="text-sm text-gray-500">${item.email}</div></td>
-                        <td class="p-4">${status}</td>
-                        <td class="p-4 truncate" style="max-width: 300px;">${link}</td>
-                    </tr>
-                `;
-                listBody.innerHTML += row;
-            });
         }
 
         // --- Admin: CVs View ---
@@ -1360,43 +1396,48 @@
             const listBody = document.getElementById('admin-cv-list');
             listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">Loading...</td></tr>';
             
-            const usersCollectionRef = collection(db, "users");
-            const userSnapshot = await getDocs(usersCollectionRef);
-            let cvData = [];
+            try {
+                const usersCollectionRef = collection(db, "users");
+                const userSnapshot = await getDocs(usersCollectionRef);
+                let cvData = [];
 
-            for (const userDoc of userSnapshot.docs) {
-                const user = { id: userDoc.id, ...userDoc.data() };
-                const resumeDocRef = doc(db, `users/${user.id}/resume`, 'data');
-                const resumeDoc = await getDoc(resumeDocRef);
-                if (resumeDoc.exists()) {
-                    cvData.push({ ...user, resume: resumeDoc.data() });
+                for (const userDoc of userSnapshot.docs) {
+                    const user = { id: userDoc.id, ...userDoc.data() };
+                    const resumeDocRef = doc(db, `users/${user.id}/resume`, 'data');
+                    const resumeDoc = await getDoc(resumeDocRef);
+                    if (resumeDoc.exists()) {
+                        cvData.push({ ...user, resume: resumeDoc.data() });
+                    }
                 }
-            }
 
-            listBody.innerHTML = '';
-            if (cvData.length === 0) {
-                 listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">No resumes submitted yet.</td></tr>';
-                 return;
-            }
-
-            cvData.forEach(user => {
-                const row = document.createElement('tr');
-                row.className = 'border-b';
-                row.innerHTML = `
-                    <td class="p-4 font-semibold">${user.name}</td>
-                    <td class="p-4">${user.email}</td>
-                    <td class="p-4"><button data-userid="${user.id}" class="view-cv-btn bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">View Resume</button></td>
-                `;
-                listBody.appendChild(row);
-            });
-
-            listBody.addEventListener('click', e => {
-                if (e.target.classList.contains('view-cv-btn')) {
-                    const userId = e.target.dataset.userid;
-                    const userData = cvData.find(u => u.id === userId);
-                    generateAndShowPDF(userData.resume);
+                listBody.innerHTML = '';
+                if (cvData.length === 0) {
+                     listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">No resumes submitted yet.</td></tr>';
+                     return;
                 }
-            });
+
+                cvData.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+                    row.innerHTML = `
+                        <td class="p-4 font-semibold">${user.name}</td>
+                        <td class="p-4">${user.email}</td>
+                        <td class="p-4"><button data-userid="${user.id}" class="view-cv-btn bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">View Resume</button></td>
+                    `;
+                    listBody.appendChild(row);
+                });
+
+                listBody.addEventListener('click', e => {
+                    if (e.target.classList.contains('view-cv-btn')) {
+                        const userId = e.target.dataset.userid;
+                        const userData = cvData.find(u => u.id === userId);
+                        generateAndShowPDF(userData.resume);
+                    }
+                });
+            } catch (error) {
+                console.error("Error loading resumes:", error);
+                listBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Could not load resumes.</td></tr>';
+            }
         }
 
         function generateAndShowPDF(resumeData) {
@@ -1460,11 +1501,33 @@
         document.getElementById('global-links-list').addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-link-btn')) {
                 const linkId = e.target.dataset.linkid;
-                // This now works correctly because users fetch global links live.
                 if (confirm('Are you sure you want to delete this global link? It will be removed for all users immediately.')) {
-                    await deleteDoc(doc(db, "global_links", linkId));
-                    // Also need to delete all the shortlink entries. This is best for a cloud function.
-                    alert('Global link deleted. Users will no longer see it.');
+                    // WARNING: This deletes the link from the global list and from each user's subcollection.
+                    // This can be slow and costly on a large number of users.
+                    // A Cloud Function is the recommended way to handle this for production apps.
+                    try {
+                        // 1. Get all users
+                        const usersSnapshot = await getDocs(collection(db, "users"));
+                        const batch = writeBatch(db);
+
+                        // 2. For each user, add a delete operation for the specific link
+                        usersSnapshot.forEach(userDoc => {
+                            const userLinkRef = doc(db, `users/${userDoc.id}/links`, linkId);
+                            batch.delete(userLinkRef);
+                        });
+
+                        // 3. Delete the main global link
+                        const globalLinkRef = doc(db, "global_links", linkId);
+                        batch.delete(globalLinkRef);
+
+                        // 4. Commit all operations at once
+                        await batch.commit();
+                        alert('Global link deleted for all users.');
+
+                    } catch (error) {
+                        console.error("Error deleting global link:", error);
+                        alert("Error: Could not completely remove the link. Please check the console.");
+                    }
                 }
             }
         });
@@ -1476,10 +1539,29 @@
             statusEl.textContent = 'Adding link...';
 
             try {
-                // Only add to global_links. The client will handle the rest.
-                await addDoc(collection(db, "global_links"), { original: url, createdAt: Timestamp.now() });
+                // 1. Add to global_links collection
+                const globalLinkRef = await addDoc(collection(db, "global_links"), { original: url, createdAt: Timestamp.now() });
+                const linkId = globalLinkRef.id;
+
+                // 2. Add this link to every existing user's `links` subcollection
+                const usersSnapshot = await getDocs(collection(db, "users"));
+                const batch = writeBatch(db);
+
+                usersSnapshot.forEach(userDoc => {
+                    const userId = userDoc.id;
+                    const shortCode = generateShortCode(url, userId, linkId);
+                    const shortUrl = getShortUrl(shortCode);
+
+                    const userLinkRef = doc(db, `users/${userId}/links`, linkId);
+                    batch.set(userLinkRef, { original: url, short: shortUrl, clicks: 0, global: true });
+
+                    const shortLinkDocRef = doc(db, "shortlinks", shortCode);
+                    batch.set(shortLinkDocRef, { original: url, ownerId: userId, linkId: linkId });
+                });
+
+                await batch.commit();
                 
-                statusEl.textContent = 'Global link added successfully!';
+                statusEl.textContent = 'Global link added successfully for all users!';
                 statusEl.className = 'mt-2 text-center text-green-600';
                 document.getElementById('add-link-form').reset();
             } catch (error) {
@@ -1520,7 +1602,6 @@
 
         function renderAllNotifications() {
             const allNotifications = [...broadcastNotifs, ...directMessageNotifs];
-            // Sort all notifications by timestamp
             allNotifications.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
             
             notificationList.innerHTML = '';
@@ -1530,9 +1611,9 @@
             }
 
             let hasUnseen = false;
-            allNotifications.slice(0, 20).forEach(notif => { // Show latest 20
+            allNotifications.slice(0, 20).forEach(notif => {
                 if (!notif.isSeen) hasUnseen = true;
-                const icon = notif.type === 'direct' ? '&#128172;' : '&#128226;'; // Speech bubble vs Megaphone
+                const icon = notif.type === 'direct' ? '&#128172;' : '&#128226;';
                 const notifElement = document.createElement('div');
                 notifElement.dataset.notifid = notif.id;
                 notifElement.dataset.seen = notif.isSeen;
@@ -1555,7 +1636,6 @@
             if (!user) return;
             const userDocRef = doc(db, "users", user.uid);
 
-            // Mark broadcast notifications as seen
             const unseenBroadcasts = broadcastNotifs.filter(n => !n.isSeen).map(n => n.id);
             if (unseenBroadcasts.length > 0) {
                 const userDocSnap = await getDoc(userDocRef);
@@ -1563,18 +1643,20 @@
                 await updateDoc(userDocRef, { seenNotifications: [...new Set([...currentSeen, ...unseenBroadcasts])] });
             }
 
-            // Mark direct messages as seen
             const unseenDirects = directMessageNotifs.filter(n => !n.isSeen).map(n => n.id);
-            for (const notifId of unseenDirects) {
+            const batch = writeBatch(db);
+            unseenDirects.forEach(notifId => {
                 const dmRef = doc(db, `users/${user.uid}/direct_messages`, notifId);
-                await updateDoc(dmRef, { seen: true });
+                batch.update(dmRef, { seen: true });
+            });
+            if (unseenDirects.length > 0) {
+                await batch.commit();
             }
         });
 
         function listenForNotifications(userId) {
             const userDocRef = doc(db, "users", userId);
 
-            // Listener for Broadcasts
             const broadcastQuery = query(collection(db, "broadcast_notifications"), orderBy("timestamp", "desc"), limit(10));
             unsubscribeNotifications = onSnapshot(broadcastQuery, async (snapshot) => {
                 const userDoc = await getDoc(userDocRef);
@@ -1588,7 +1670,6 @@
                 renderAllNotifications();
             });
 
-            // Listener for Direct Messages
             const directMessageQuery = query(collection(db, `users/${userId}/direct_messages`), orderBy("timestamp", "desc"), limit(10));
             unsubscribeDirectMessages = onSnapshot(directMessageQuery, (snapshot) => {
                 directMessageNotifs = snapshot.docs.map(doc => ({
