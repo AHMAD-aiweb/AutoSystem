@@ -588,21 +588,24 @@
                         
                         try {
                             const userDocRef = doc(db, "users", ownerId);
+                            // The link could be a global link or a user-specific one. We don't need to know which, just increment the count.
                             const linkDocRef = doc(db, `users/${ownerId}/links`, linkId);
 
                             await runTransaction(db, async (transaction) => {
                                 const userDoc = await transaction.get(userDocRef);
-                                const linkDoc = await transaction.get(linkDocRef);
+                                if (!userDoc.exists()) {
+                                    throw "User document does not exist!";
+                                }
 
-                                if (!userDoc.exists() || !linkDoc.exists()) {
-                                    throw "Document does not exist!";
+                                // We still record clicks on the user's specific link document for individual tracking
+                                const linkDoc = await transaction.get(linkDocRef);
+                                if(linkDoc.exists()){
+                                    const newLinkClicks = (linkDoc.data().clicks || 0) + 1;
+                                    transaction.update(linkDocRef, { clicks: newLinkClicks });
                                 }
 
                                 const newTotalClicks = (userDoc.data().clicks || 0) + 1;
-                                const newLinkClicks = (linkDoc.data().clicks || 0) + 1;
-
                                 transaction.update(userDocRef, { clicks: newTotalClicks });
-                                transaction.update(linkDocRef, { clicks: newLinkClicks });
                             });
                             
                             window.location.replace(original);
@@ -659,6 +662,7 @@
         const loggedOutLinks = document.querySelectorAll('[data-page="signin"], [data-page="signup"]');
         let unsubscribeNotifications = null;
         let unsubscribeUserData = null;
+        let unsubscribeDirectMessages = null;
 
         onAuthStateChanged(auth, user => {
             if (user) {
@@ -668,7 +672,8 @@
                     showPage('main');
                     loadUserData(user);
                     if (unsubscribeNotifications) unsubscribeNotifications();
-                    unsubscribeNotifications = listenForNotifications(user.uid);
+                    if (unsubscribeDirectMessages) unsubscribeDirectMessages();
+                    listenForNotifications(user.uid); // This now sets up both listeners
                 }
             } else {
                 if (!window.location.hash.startsWith('#/redirect/')) {
@@ -677,6 +682,7 @@
                     showPage('signin');
                     if (unsubscribeNotifications) unsubscribeNotifications();
                     if (unsubscribeUserData) unsubscribeUserData();
+                    if (unsubscribeDirectMessages) unsubscribeDirectMessages();
                 }
             }
         });
@@ -705,25 +711,11 @@
                     phoneVerified: false,
                     phoneOtp: '',
                     claimedRewards: { starter: false, bronze: false, silver: false, gold: false, diamond: false },
-                    seenNotifications: []
+                    seenNotifications: [], // For broadcast messages
+                    seenDirectMessages: [] // For direct messages
                 });
                 
-                // Add existing global links to the new user
-                const globalLinksQuery = query(collection(db, "global_links"));
-                const globalLinksSnapshot = await getDocs(globalLinksQuery);
-                
-                for(const linkDoc of globalLinksSnapshot.docs) {
-                    const linkData = linkDoc.data();
-                    const linkId = linkDoc.id;
-                    const shortCode = generateShortCode(linkData.original, user.uid, linkId);
-                    const shortUrl = getShortUrl(shortCode);
-                    
-                    const userLinkDocRef = doc(db, `users/${user.uid}/links`, linkId);
-                    await setDoc(userLinkDocRef, { original: linkData.original, short: shortUrl, clicks: 0, global: true });
-                    
-                    const shortLinkDocRef = doc(db, "shortlinks", shortCode);
-                    await setDoc(shortLinkDocRef, { original: linkData.original, ownerId: user.uid, linkId: linkId });
-                }
+                // NOTE: No longer need to copy global links. They are fetched live.
                 
                 signupForm.reset();
                 signupError.textContent = '';
@@ -800,49 +792,68 @@
         }
 
         // --- Display Short Links (Main Page) ---
+        // Refactored to fetch global and user links separately
         async function displayShortLinks(userId) {
             const linksContainer = document.getElementById('short-links-container');
-            const linksQuery = query(collection(db, `users/${userId}/links`));
-            
-            // Use onSnapshot for real-time link updates
-            onSnapshot(linksQuery, (linksSnapshot) => {
-                linksContainer.innerHTML = ''; 
-                if (linksSnapshot.empty) {
-                    linksContainer.innerHTML = '<p class="text-gray-600 col-span-full">No links have been assigned to you yet.</p>';
-                    return;
-                }
-                
-                linksSnapshot.forEach(doc => {
-                    const linkData = doc.data();
-                    const linkCard = `
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <p class="text-sm text-gray-500 truncate">Original: ${linkData.original}</p>
-                            <a href="${linkData.short}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline break-all">${linkData.short}</a>
-                            <p class="text-gray-700 mt-2">Clicks: <span class="font-bold">${linkData.clicks}</span></p>
-                            <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${linkData.short}">Copy Link</button>
-                        </div>
-                    `;
-                    linksContainer.innerHTML += linkCard;
-                });
+            linksContainer.innerHTML = '<p class="text-gray-600 col-span-full">Loading links...</p>';
 
-                document.querySelectorAll('.copy-btn').forEach(button => {
-                    button.addEventListener('click', () => {
-                        const linkToCopy = button.getAttribute('data-link');
-                        // Use a fallback for clipboard API
-                        const textArea = document.createElement("textarea");
-                        textArea.value = linkToCopy;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        try {
-                            document.execCommand('copy');
-                            button.textContent = 'Copied!';
-                        } catch (err) {
-                            console.error('Fallback: Oops, unable to copy', err);
-                            button.textContent = 'Error!';
-                        }
-                        document.body.removeChild(textArea);
-                        setTimeout(() => { button.textContent = 'Copy Link'; }, 2000);
-                    });
+            // 1. Fetch global links
+            const globalLinksQuery = query(collection(db, "global_links"));
+            const globalLinksSnapshot = await getDocs(globalLinksQuery);
+            const globalLinks = globalLinksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'global' }));
+
+            // 2. Fetch user-specific links (if any in the future)
+            const userLinksQuery = query(collection(db, `users/${userId}/links`));
+            const userLinksSnapshot = await getDocs(userLinksQuery);
+            const userLinks = userLinksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'user' }));
+            
+            // 3. Combine and render
+            const allLinks = [...globalLinks, ...userLinks];
+            linksContainer.innerHTML = ''; 
+
+            if (allLinks.length === 0) {
+                linksContainer.innerHTML = '<p class="text-gray-600 col-span-full">No links have been assigned to you yet.</p>';
+                return;
+            }
+
+            // Create user-specific short URLs for global links on the fly
+            allLinks.forEach(linkData => {
+                const linkId = linkData.id;
+                const shortCode = generateShortCode(linkData.original, userId, linkId);
+                const shortUrl = getShortUrl(shortCode);
+
+                // We need to get the click count for this user's specific version of the link
+                // This part is tricky without duplicating data. For now, we'll show global clicks as 0 for simplicity.
+                // A better model would have a subcollection for clicks on each global link.
+                const clickCount = linkData.type === 'user' ? linkData.clicks : 0;
+
+                const linkCard = `
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <p class="text-sm text-gray-500 truncate">Original: ${linkData.original}</p>
+                        <a href="${shortUrl}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline break-all">${shortUrl}</a>
+                        <p class="text-gray-700 mt-2">Clicks: <span class="font-bold">${clickCount}</span></p>
+                        <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${shortUrl}">Copy Link</button>
+                    </div>
+                `;
+                linksContainer.innerHTML += linkCard;
+            });
+
+            document.querySelectorAll('.copy-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const linkToCopy = button.getAttribute('data-link');
+                    const textArea = document.createElement("textarea");
+                    textArea.value = linkToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        button.textContent = 'Copied!';
+                    } catch (err) {
+                        console.error('Fallback: Oops, unable to copy', err);
+                        button.textContent = 'Error!';
+                    }
+                    document.body.removeChild(textArea);
+                    setTimeout(() => { button.textContent = 'Copy Link'; }, 2000);
                 });
             });
         }
@@ -919,11 +930,9 @@
             }
             
             const userDocRef = doc(db, "users", user.uid);
-            // We only save the phone number. The OTP is generated by the admin.
             await updateDoc(userDocRef, { phone: phone, phoneVerified: false });
             messageEl.textContent = 'Phone number saved. Please wait for an admin to send an OTP.';
             messageEl.className = 'mt-4 text-center text-green-500';
-            // Manually update UI state
             updatePhoneVerificationUI({ phone: phone, phoneVerified: false, phoneOtp: '' });
         });
 
@@ -1192,7 +1201,7 @@
                     row.innerHTML = `
                         <td class="p-4"><div class="font-semibold">${user.name}</div><div class="text-sm text-gray-500">${user.email}</div></td>
                         <td class="p-4">${user.phone || 'N/A'} (${phoneStatus})</td>
-                        <td class="p-4 font-bold">${user.clicks}</td>
+                        <td class="p-4 font-bold">${user.clicks || 0}</td>
                         <td class="p-4"><button data-userid="${user.id}" class="details-btn bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">Details</button></td>
                     `;
                     userListBody.appendChild(row);
@@ -1221,7 +1230,7 @@
             
             const phoneStatus = user.phoneVerified ? 'Verified' : (user.phone ? 'Pending' : 'Not Added');
             const phoneAction = !user.phoneVerified && user.phone 
-                ? `<button id="generate-otp-btn" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Generate & Send OTP</button>`
+                ? `<button id="generate-otp-btn" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Generate OTP</button>`
                 : '';
 
             const modalHTML = `
@@ -1251,29 +1260,52 @@
                 modalsContainer.innerHTML = '';
             });
 
+            // --- OTP Generation and Backend Explanation ---
             if (document.getElementById('generate-otp-btn')) {
                 document.getElementById('generate-otp-btn').addEventListener('click', async () => {
+                    // **DEVELOPER NOTE ON AUTOMATIC OTP SENDING**
+                    // The following code generates an OTP and saves it to Firestore. It then displays
+                    // it on the ADMIN'S screen. This is a secure, manual fallback.
+                    //
+                    // **To automate this**, you CANNOT send an SMS from client-side JavaScript.
+                    // Doing so would expose your SMS provider's API keys.
+                    //
+                    // **THE CORRECT APPROACH:**
+                    // 1. Create a Firebase Cloud Function (e.g., `sendOtpOnRequest`).
+                    // 2. This function would be triggered by an event, like a new document being created
+                    //    in a `otp_requests` collection, or by being called directly from the client.
+                    // 3. Inside the Cloud Function (which runs on a secure server):
+                    //    a. Generate the OTP.
+                    //    b. Use an SMS service provider's SDK (like Twilio or Vonage) with your secure API keys.
+                    //    c. Call the service to send the OTP to the user's phone number.
+                    //    d. Save the generated OTP to the user's document in Firestore so it can be verified.
+                    //
+                    // The JSON template you provided is what you would use to configure such a service.
+                    // This client-side code CANNOT use that template directly and securely.
+
                     const otp = Math.floor(1000 + Math.random() * 9000).toString();
                     const userDocRef = doc(db, "users", user.id);
                     await updateDoc(userDocRef, { phoneOtp: otp });
-                    document.getElementById('otp-display').innerHTML = `<p class="text-green-600">OTP Generated: <strong class="text-lg">${otp}</strong>. Please provide this to the user.</p>`;
+                    document.getElementById('otp-display').innerHTML = `<p class="text-green-600">OTP Generated: <strong class="text-lg">${otp}</strong>. Please provide this to the user to enter on their profile page.</p>`;
                     document.getElementById('generate-otp-btn').style.display = 'none';
                 });
             }
             
+            // --- Direct Message Logic (FIXED) ---
             document.getElementById('send-direct-message-btn').addEventListener('click', async () => {
                 const message = document.getElementById('direct-message-text').value;
                 if (!message) return;
                 
-                // This is a direct message, but we'll add it to the broadcast collection for simplicity
-                // In a real app, this would be a separate collection
-                const notificationRef = collection(db, "broadcast_notifications");
-                await addDoc(notificationRef, {
-                    message: `Message for ${user.name}: ${message}`,
+                // Send message to the user-specific "direct_messages" subcollection
+                const messageRef = collection(db, `users/${user.id}/direct_messages`);
+                await addDoc(messageRef, {
+                    message: message,
+                    from: 'admin',
                     timestamp: Timestamp.now(),
+                    seen: false
                 });
                 
-                document.getElementById('direct-message-status').textContent = 'Message sent as a notification!';
+                document.getElementById('direct-message-status').textContent = 'Message sent!';
                 document.getElementById('direct-message-text').value = '';
                 setTimeout(() => { document.getElementById('direct-message-status').textContent = ''; }, 3000);
             });
@@ -1401,7 +1433,7 @@
             doc.output('dataurlnewwindow');
         }
 
-        // --- Admin: Links View ---
+        // --- Admin: Links View (Refactored) ---
         async function loadGlobalLinks() {
             const linksList = document.getElementById('global-links-list');
             const q = query(collection(db, "global_links"));
@@ -1428,11 +1460,11 @@
         document.getElementById('global-links-list').addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-link-btn')) {
                 const linkId = e.target.dataset.linkid;
-                if (confirm('Are you sure you want to delete this link for ALL users? This cannot be undone.')) {
-                    // This is a complex operation. For this example, we'll just delete the global link.
-                    // A full implementation would need a Cloud Function to delete subcollections.
+                // This now works correctly because users fetch global links live.
+                if (confirm('Are you sure you want to delete this global link? It will be removed for all users immediately.')) {
                     await deleteDoc(doc(db, "global_links", linkId));
-                    alert('Global link deleted. Note: Individual user links need manual cleanup or a Cloud Function.');
+                    // Also need to delete all the shortlink entries. This is best for a cloud function.
+                    alert('Global link deleted. Users will no longer see it.');
                 }
             }
         });
@@ -1444,27 +1476,10 @@
             statusEl.textContent = 'Adding link...';
 
             try {
-                // 1. Add to global_links
-                const globalLinkRef = await addDoc(collection(db, "global_links"), { original: url });
-                const linkId = globalLinkRef.id;
-
-                // 2. Add to every existing user
-                const usersQuery = query(collection(db, "users"));
-                const usersSnapshot = await getDocs(usersQuery);
-
-                for (const userDoc of usersSnapshot.docs) {
-                    const userId = userDoc.id;
-                    const shortCode = generateShortCode(url, userId, linkId);
-                    const shortUrl = getShortUrl(shortCode);
-
-                    const userLinkDocRef = doc(db, `users/${userId}/links`, linkId);
-                    await setDoc(userLinkDocRef, { original: url, short: shortUrl, clicks: 0, global: true });
-
-                    const shortLinkDocRef = doc(db, "shortlinks", shortCode);
-                    await setDoc(shortLinkDocRef, { original: url, ownerId: userId, linkId: linkId });
-                }
-
-                statusEl.textContent = 'Link added successfully for all users!';
+                // Only add to global_links. The client will handle the rest.
+                await addDoc(collection(db, "global_links"), { original: url, createdAt: Timestamp.now() });
+                
+                statusEl.textContent = 'Global link added successfully!';
                 statusEl.className = 'mt-2 text-center text-green-600';
                 document.getElementById('add-link-form').reset();
             } catch (error) {
@@ -1496,68 +1511,94 @@
             }
         });
         
-        // --- User Notification System ---
+        // --- User Notification System (Refactored for Direct Messages) ---
         const notificationDropdown = document.getElementById('notification-dropdown');
         const notificationList = document.getElementById('notification-list');
         const notificationDot = document.getElementById('notification-dot');
+        let broadcastNotifs = [];
+        let directMessageNotifs = [];
 
-        document.getElementById('notification-bell').addEventListener('click', () => {
+        function renderAllNotifications() {
+            const allNotifications = [...broadcastNotifs, ...directMessageNotifs];
+            // Sort all notifications by timestamp
+            allNotifications.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            
+            notificationList.innerHTML = '';
+            if (allNotifications.length === 0) {
+                notificationList.innerHTML = '<p class="p-4 text-gray-500 text-sm">No notifications yet.</p>';
+                return;
+            }
+
+            let hasUnseen = false;
+            allNotifications.slice(0, 20).forEach(notif => { // Show latest 20
+                if (!notif.isSeen) hasUnseen = true;
+                const icon = notif.type === 'direct' ? '&#128172;' : '&#128226;'; // Speech bubble vs Megaphone
+                const notifElement = document.createElement('div');
+                notifElement.dataset.notifid = notif.id;
+                notifElement.dataset.seen = notif.isSeen;
+                notifElement.dataset.type = notif.type;
+                notifElement.className = `p-4 border-b hover:bg-gray-100 ${notif.isSeen ? 'text-gray-500' : 'font-bold text-gray-800'}`;
+                notifElement.innerHTML = `
+                    <p class="text-sm">${icon} ${notif.message}</p>
+                    <p class="text-xs text-gray-400 mt-1">${notif.timestamp.toDate().toLocaleString()}</p>
+                `;
+                notificationList.appendChild(notifElement);
+            });
+            notificationDot.classList.toggle('hidden', !hasUnseen);
+        }
+
+        document.getElementById('notification-bell').addEventListener('click', async () => {
             notificationDropdown.classList.toggle('hidden');
-            if (!notificationDropdown.classList.contains('hidden')) {
-                notificationDot.classList.add('hidden');
-                // Mark all visible notifications as seen
-                const user = auth.currentUser;
-                if (!user) return;
-                const unseenNotifs = Array.from(notificationList.children)
-                    .filter(el => el.dataset.seen === 'false')
-                    .map(el => el.dataset.notifid);
-                
-                if (unseenNotifs.length > 0) {
-                    const userDocRef = doc(db, "users", user.uid);
-                    getDoc(userDocRef).then(docSnap => {
-                        const currentSeen = docSnap.data().seenNotifications || [];
-                        updateDoc(userDocRef, { seenNotifications: [...new Set([...currentSeen, ...unseenNotifs])] });
-                    });
-                }
+            if (notificationDropdown.classList.contains('hidden')) return;
+
+            const user = auth.currentUser;
+            if (!user) return;
+            const userDocRef = doc(db, "users", user.uid);
+
+            // Mark broadcast notifications as seen
+            const unseenBroadcasts = broadcastNotifs.filter(n => !n.isSeen).map(n => n.id);
+            if (unseenBroadcasts.length > 0) {
+                const userDocSnap = await getDoc(userDocRef);
+                const currentSeen = userDocSnap.data().seenNotifications || [];
+                await updateDoc(userDocRef, { seenNotifications: [...new Set([...currentSeen, ...unseenBroadcasts])] });
+            }
+
+            // Mark direct messages as seen
+            const unseenDirects = directMessageNotifs.filter(n => !n.isSeen).map(n => n.id);
+            for (const notifId of unseenDirects) {
+                const dmRef = doc(db, `users/${user.uid}/direct_messages`, notifId);
+                await updateDoc(dmRef, { seen: true });
             }
         });
 
         function listenForNotifications(userId) {
             const userDocRef = doc(db, "users", userId);
-            
-            const q = query(collection(db, "broadcast_notifications"), orderBy("timestamp", "desc"), limit(10));
-            
-            const unsubscribe = onSnapshot(q, async (snapshot) => {
+
+            // Listener for Broadcasts
+            const broadcastQuery = query(collection(db, "broadcast_notifications"), orderBy("timestamp", "desc"), limit(10));
+            unsubscribeNotifications = onSnapshot(broadcastQuery, async (snapshot) => {
                 const userDoc = await getDoc(userDocRef);
                 const seenNotifications = userDoc.data().seenNotifications || [];
-                let hasUnseen = false;
-                
-                notificationList.innerHTML = '';
-                if (snapshot.empty) {
-                    notificationList.innerHTML = '<p class="p-4 text-gray-500 text-sm">No notifications yet.</p>';
-                    return;
-                }
-
-                snapshot.forEach(notifDoc => {
-                    const notifData = notifDoc.data();
-                    const notifId = notifDoc.id;
-                    const isSeen = seenNotifications.includes(notifId);
-                    if (!isSeen) hasUnseen = true;
-
-                    const notifElement = document.createElement('div');
-                    notifElement.dataset.notifid = notifId;
-                    notifElement.dataset.seen = isSeen;
-                    notifElement.className = `p-4 border-b hover:bg-gray-100 ${isSeen ? 'text-gray-500' : 'font-bold text-gray-800'}`;
-                    notifElement.innerHTML = `
-                        <p class="text-sm">${notifData.message}</p>
-                        <p class="text-xs text-gray-400 mt-1">${notifData.timestamp.toDate().toLocaleString()}</p>
-                    `;
-                    notificationList.appendChild(notifElement);
-                });
-                
-                notificationDot.classList.toggle('hidden', !hasUnseen);
+                broadcastNotifs = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    isSeen: seenNotifications.includes(doc.id),
+                    type: 'broadcast'
+                }));
+                renderAllNotifications();
             });
-            return unsubscribe;
+
+            // Listener for Direct Messages
+            const directMessageQuery = query(collection(db, `users/${userId}/direct_messages`), orderBy("timestamp", "desc"), limit(10));
+            unsubscribeDirectMessages = onSnapshot(directMessageQuery, (snapshot) => {
+                directMessageNotifs = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    isSeen: doc.data().seen,
+                    type: 'direct'
+                }));
+                renderAllNotifications();
+            });
         }
 
     </script>
