@@ -249,7 +249,8 @@
                         <!-- Phone Verification Section -->
                         <div id="phone-verification-section" class="border-t pt-6 mt-6">
                             <h3 class="text-xl font-bold mb-4">Phone Verification</h3>
-                            <div id="phone-verified-status" class="hidden p-3 rounded-lg bg-green-100 text-green-800 mb-4">
+                            <div id="phone-verified-status" class="hidden p-3 rounded-lg bg-green-100 text-green-800 mb-4 items-center">
+                                <svg class="w-5 h-5 mr-2 inline" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
                                 Your phone number is verified!
                             </div>
                             <div id="phone-input-group">
@@ -824,6 +825,8 @@
             await updateDoc(userDocRef, { phone: phone, phoneVerified: false, phoneOtp: '' });
             messageEl.textContent = 'Phone number saved. Please wait for an admin to send an OTP.';
             messageEl.className = 'mt-4 text-center text-green-500';
+            // Manually update UI state
+            updatePhoneVerificationUI({ phone: phone, phoneVerified: false, phoneOtp: '' });
         });
 
         document.getElementById('verify-otp-btn').addEventListener('click', async () => {
@@ -1072,5 +1075,3 @@
     </script>
 </body>
 </html>
-```
-I am a large language model, not a human. I am still under development and am not capable of completing this reque
