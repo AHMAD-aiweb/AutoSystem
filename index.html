@@ -23,6 +23,22 @@
         #app-container.hidden {
             display: none;
         }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .modal-content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -41,6 +57,18 @@
                     <a href="#" class="nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="main">Main</a>
                     <a href="#" class="nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="dashboard">Dashboard</a>
                     <a href="#" class="nav-link text-gray-600 hover:text-indigo-600 hidden" data-page="profile">Profile</a>
+                    <div class="relative">
+                        <button id="notification-bell" class="hidden text-gray-600 hover:text-indigo-600 focus:outline-none">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341A6.002 6.002 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            <span id="notification-dot" class="hidden absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        </button>
+                        <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-20">
+                           <div class="py-2 px-4 font-bold border-b">Notifications</div>
+                           <div id="notification-list" class="py-1 max-h-64 overflow-y-auto">
+                               <!-- Notifications will be populated here -->
+                           </div>
+                        </div>
+                    </div>
                     <button id="logout-btn" class="hidden bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Logout</button>
                 </div>
                 <div class="md:hidden">
@@ -79,6 +107,9 @@
                         </div>
                         <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Sign In</button>
                     </form>
+                    <div class="text-center mt-4">
+                        <a href="#" id="forgot-password-link" class="text-sm text-indigo-600 hover:underline">Forgot Password?</a>
+                    </div>
                     <p class="text-center mt-4">Don't have an account? <a href="#" class="text-indigo-600 hover:underline nav-link" data-page="signup">Sign Up</a></p>
                     <div id="signin-error" class="text-red-500 mt-4 text-center"></div>
                 </div>
@@ -211,68 +242,32 @@
                             <input type="file" id="profile-cv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
                             <p id="cv-upload-status" class="text-sm text-green-600 mt-2"></p>
                         </div>
-                        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Update Profile</button>
+                        <!-- Phone Verification Section -->
+                        <div id="phone-verification-section" class="border-t pt-6 mt-6">
+                            <h3 class="text-xl font-bold mb-4">Phone Verification</h3>
+                            <div id="phone-verified-status" class="hidden p-3 rounded-lg bg-green-100 text-green-800 mb-4">
+                                Your phone number is verified!
+                            </div>
+                            <div id="phone-input-group">
+                                <label for="profile-phone" class="block text-gray-700 mb-2">Phone Number</label>
+                                <input type="tel" id="profile-phone" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="+1234567890">
+                                <button type="button" id="save-phone-btn" class="mt-2 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700">Save Phone Number</button>
+                            </div>
+                            <div id="otp-input-group" class="hidden mt-4">
+                                <p class="text-sm text-gray-600 mb-2">An OTP has been sent by the admin. Please enter it below.</p>
+                                <label for="profile-otp" class="block text-gray-700 mb-2">4-Digit OTP</label>
+                                <input type="text" id="profile-otp" maxlength="4" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1234">
+                                <button type="button" id="verify-otp-btn" class="mt-2 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">Verify OTP</button>
+                            </div>
+                            <div id="phone-verification-message" class="mt-4 text-center"></div>
+                        </div>
+                        <button type="submit" class="mt-8 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Update Profile</button>
                     </form>
                      <div id="profile-message" class="text-green-500 mt-4 text-center"></div>
                 </div>
             </div>
 
-            <!-- Privacy Policy Page -->
-            <div id="privacy-policy-page" class="page">
-                 <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-                    <h1 class="text-4xl font-bold mb-6">Privacy Policy</h1>
-                    <div class="space-y-4 text-gray-700">
-                        <p>Your privacy is important to us. It is AutoSystem's policy to respect your privacy regarding any information we may collect from you across our website.</p>
-                        <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.</p>
-                        <p>We only retain collected information for as long as necessary to provide you with your requested service. What data we store, we’ll protect within commercially acceptable means to prevent loss and theft, as well as unauthorized access, disclosure, copying, use or modification.</p>
-                        <p>We don’t share any personally identifying information publicly or with third-parties, except when required to by law.</p>
-                        <p>Our website may link to external sites that are not operated by us. Please be aware that we have no control over the content and practices of these sites, and cannot accept responsibility or liability for their respective privacy policies.</p>
-                        <p>You are free to refuse our request for your personal information, with the understanding that we may be unable to provide you with some of your desired services.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Terms and Conditions Page -->
-            <div id="terms-condition-page" class="page">
-                <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-                    <h1 class="text-4xl font-bold mb-6">Terms and Conditions</h1>
-                    <div class="space-y-4 text-gray-700">
-                        <h2 class="text-2xl font-semibold">Welcome to AutoSystem!</h2>
-                        <p>These terms and conditions outline the rules and regulations for the use of AutoSystem's Website.</p>
-                        <p>By accessing this website we assume you accept these terms and conditions. Do not continue to use AutoSystem if you do not agree to take all of the terms and conditions stated on this page.</p>
-                        <h2 class="text-2xl font-semibold mt-4">Your Opportunity</h2>
-                        <p>With AutoSystem, you can earn money with us and build a brighter future. Our platform is designed for those who want a flexible, part-time opportunity to generate income. You don't need to dedicate much time; you can work at your own pace and on your own schedule.</p>
-                        <p>By sharing your unique links and driving traffic, you unlock rewards and potential career opportunities with us. The more clicks you generate, the higher your tier and the greater your rewards. Reaching the Gold Tier makes you eligible to be considered for a more permanent role within our organization.</p>
-                        <h2 class="text-2xl font-semibold mt-4">User Responsibilities</h2>
-                        <p>You are responsible for any activity that occurs through your account and you agree you will not sell, transfer, license or assign your account, followers, username, or any account rights. You also represent that all information you provide or provided to AutoSystem upon registration and at all other times will be true, accurate, current and complete and you agree to update your information as necessary to maintain its truth and accuracy.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Contact Us Page -->
-            <div id="contact-us-page" class="page">
-                <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg text-center">
-                    <h1 class="text-4xl font-bold mb-6">Contact Us</h1>
-                    <p class="text-lg text-gray-600 mb-4">Have questions? We'd love to hear from you. Reach out to us via email.</p>
-                    <a href="mailto:contactmashab@gmail.com" class="text-2xl font-semibold text-indigo-600 hover:underline">contactmashab@gmail.com</a>
-                </div>
-            </div>
-
-            <!-- About Us Page -->
-            <div id="about-us-page" class="page">
-                 <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-                    <h1 class="text-4xl font-bold mb-6">About Us</h1>
-                    <div class="space-y-4 text-gray-700">
-                        <p>AutoSystem is an innovative platform designed to empower individuals by providing a unique opportunity to earn rewards and build a career path through a simple, automated system.</p>
-                        <p>Our system works by providing our employees with unique, trackable links. On our <strong class="text-indigo-600">Main Page</strong>, you'll find your personalized short links, ready to be shared across the web. The more these links are clicked, the more you progress.</p>
-                        <p>The <strong class="text-indigo-600">Dashboard</strong> is your command center. Here, you can monitor your performance in real-time, seeing exactly how many clicks your links have received. The dashboard also outlines our tiered reward system, from Bronze to Diamond, showing your eligibility and allowing you to claim rewards as you hit your milestones. Reaching the Gold tier is a significant achievement, as it makes you eligible to work with us more formally.</p>
-                        <p>Your <strong class="text-indigo-600">Profile Page</strong> allows you to manage your personal information, ensuring it's always up to date. You can edit your name, update your password, and even upload your CV for future opportunities.</p>
-                        <p>We believe in transparency and flexibility, as outlined in our <strong class="text-indigo-600">Terms and Conditions</strong>. Our goal is to provide a legitimate, part-time work model that fits into your life, helping you to secure a brighter financial future.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Admin Login Page (NEW) -->
+            <!-- Admin Login Page -->
             <div id="admin-login-page" class="page">
                 <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Admin Login</h2>
@@ -291,28 +286,104 @@
                 </div>
             </div>
             
-            <!-- Admin Dashboard Page (NEW) -->
+            <!-- Admin Dashboard Page -->
             <div id="admin-dashboard-page" class="page">
                 <div class="flex justify-between items-center mb-8">
                     <h1 class="text-4xl font-bold">Admin Dashboard</h1>
                     <button id="admin-logout-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Admin Logout</button>
                 </div>
-                <div class="bg-white p-8 rounded-lg shadow-lg">
-                    <h2 class="text-2xl font-bold mb-4">User Status (<span id="today-date"></span>)</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="p-4">User</th>
-                                    <th class="p-4">Total Clicks</th>
-                                    <th class="p-4">Attendance Status</th>
-                                    <th class="p-4">Verification Photo</th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-user-list">
-                                <!-- User data will be populated here -->
-                            </tbody>
-                        </table>
+                
+                <!-- Admin Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <button data-target="admin-view-users" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow">
+                        <h3 class="text-xl font-bold text-indigo-600">User Details</h3>
+                        <p class="text-gray-600 mt-2">View, message, and manage users.</p>
+                    </button>
+                    <button data-target="admin-view-attendance" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow">
+                        <h3 class="text-xl font-bold text-green-600">User Attendance</h3>
+                        <p class="text-gray-600 mt-2">See who is present today.</p>
+                    </button>
+                    <button data-target="admin-view-cvs" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow">
+                        <h3 class="text-xl font-bold text-yellow-600">User CVs</h3>
+                        <p class="text-gray-600 mt-2">Review submitted resumes.</p>
+                    </button>
+                     <button data-target="admin-view-links" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow">
+                        <h3 class="text-xl font-bold text-blue-600">Manage Links</h3>
+                        <p class="text-gray-600 mt-2">Add or remove global links.</p>
+                    </button>
+                     <button data-target="admin-view-notifications" class="admin-card-btn bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl transition-shadow col-span-1 md:col-span-2 lg:col-span-1">
+                        <h3 class="text-xl font-bold text-purple-600">Send Notification</h3>
+                        <p class="text-gray-600 mt-2">Broadcast a message to all users.</p>
+                    </button>
+                </div>
+
+                <!-- Admin Views -->
+                <div id="admin-views-container">
+                    <!-- User Details View -->
+                    <div id="admin-view-users" class="admin-view">
+                        <div class="bg-white p-8 rounded-lg shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4">All Users</h2>
+                            <input type="text" id="admin-user-search" class="w-full mb-4 px-4 py-2 border rounded-lg" placeholder="Search by name or email...">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead><tr class="bg-gray-100"><th class="p-4">User</th><th class="p-4">Phone</th><th class="p-4">Clicks</th><th class="p-4">Actions</th></tr></thead>
+                                    <tbody id="admin-all-users-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Attendance View -->
+                    <div id="admin-view-attendance" class="admin-view hidden">
+                         <div class="bg-white p-8 rounded-lg shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4">User Attendance (<span id="today-date"></span>)</h2>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead><tr class="bg-gray-100"><th class="p-4">User</th><th class="p-4">Status</th><th class="p-4">Photo</th></tr></thead>
+                                    <tbody id="admin-attendance-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- CVs View -->
+                    <div id="admin-view-cvs" class="admin-view hidden">
+                        <div class="bg-white p-8 rounded-lg shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4">Submitted CVs</h2>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead><tr class="bg-gray-100"><th class="p-4">User</th><th class="p-4">Email</th><th class="p-4">Actions</th></tr></thead>
+                                    <tbody id="admin-cv-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                     <!-- Links View -->
+                    <div id="admin-view-links" class="admin-view hidden">
+                        <div class="bg-white p-8 rounded-lg shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4">Add New Global Link</h2>
+                            <form id="add-link-form">
+                                <input type="url" id="new-link-url" class="w-full px-4 py-2 border rounded-lg" placeholder="https://example.com" required>
+                                <button type="submit" class="mt-2 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">Add Link for All Users</button>
+                            </form>
+                            <div id="add-link-status" class="mt-2 text-center"></div>
+                        </div>
+                        <div class="bg-white p-8 rounded-lg shadow-lg mt-8">
+                            <h2 class="text-2xl font-bold mb-4">Manage Global Links</h2>
+                            <div id="global-links-list" class="space-y-2"></div>
+                        </div>
+                    </div>
+                    <!-- Notifications View -->
+                    <div id="admin-view-notifications" class="admin-view hidden">
+                        <div class="bg-white p-8 rounded-lg shadow-lg">
+                            <h2 class="text-2xl font-bold mb-4">Send Notification to All Users</h2>
+                            <form id="notification-form">
+                                <div class="mb-4">
+                                    <label for="notification-message" class="block text-gray-700 mb-2">Message</label>
+                                    <textarea id="notification-message" rows="4" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Type your announcement here..." required></textarea>
+                                </div>
+                                <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300">Send Notification</button>
+                            </form>
+                            <div id="notification-send-status" class="text-green-500 mt-4 text-center font-semibold"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -325,16 +396,15 @@
                 <div class="flex flex-col md:flex-row justify-between items-center">
                     <p class="text-gray-600">&copy; 2024 AutoSystem. All rights reserved.</p>
                     <div class="flex space-x-6 mt-4 md:mt-0">
-                        <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="privacy-policy">Privacy Policy</a>
-                        <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="terms-condition">Terms & Conditions</a>
-                        <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="contact-us">Contact Us</a>
-                        <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="about-us">About Us</a>
                         <a href="#" id="admin-link" class="text-gray-600 hover:text-indigo-600">Admin</a>
                     </div>
                 </div>
             </div>
         </footer>
     </div>
+    
+    <!-- Modals Container -->
+    <div id="modals-container"></div>
     
     <!-- This div is for showing redirect messages -->
     <div id="redirect-container"></div>
@@ -351,7 +421,8 @@
             onAuthStateChanged,
             signOut,
             updateProfile,
-            updatePassword
+            updatePassword,
+            sendPasswordResetEmail // <-- Import sendPasswordResetEmail
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { 
             getFirestore, 
@@ -361,10 +432,14 @@
             updateDoc,
             collection,
             addDoc,
-            getDocs, // <-- Import getDocs
-            query,   // <-- Import query
-            where,   // <-- Import where
-            Timestamp, // <-- Import Timestamp
+            getDocs,
+            query,
+            where,
+            Timestamp,
+            onSnapshot,
+            orderBy,
+            limit,
+            deleteDoc,
             runTransaction
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { 
@@ -494,22 +569,26 @@
         });
 
         // --- Authentication State ---
-        const loggedInLinks = document.querySelectorAll('[data-page="main"], [data-page="dashboard"], [data-page="profile"], #logout-btn, #mobile-logout-btn');
+        const loggedInElements = document.querySelectorAll('[data-page="main"], [data-page="dashboard"], [data-page="profile"], #logout-btn, #mobile-logout-btn, #notification-bell');
         const loggedOutLinks = document.querySelectorAll('[data-page="signin"], [data-page="signup"]');
-        
+        let unsubscribeNotifications = null;
+
         onAuthStateChanged(auth, user => {
             if (user) {
                 if (!window.location.hash.startsWith('#/redirect/')) {
-                    loggedInLinks.forEach(link => link.classList.remove('hidden'));
+                    loggedInElements.forEach(link => link.classList.remove('hidden'));
                     loggedOutLinks.forEach(link => link.classList.add('hidden'));
                     showPage('main');
                     loadUserData(user);
+                    if (unsubscribeNotifications) unsubscribeNotifications();
+                    unsubscribeNotifications = listenForNotifications(user.uid);
                 }
             } else {
                 if (!window.location.hash.startsWith('#/redirect/')) {
-                    loggedInLinks.forEach(link => link.classList.add('hidden'));
+                    loggedInElements.forEach(link => link.classList.add('hidden'));
                     loggedOutLinks.forEach(link => link.classList.remove('hidden'));
                     showPage('signin');
+                    if (unsubscribeNotifications) unsubscribeNotifications();
                 }
             }
         });
@@ -534,23 +613,28 @@
                     name: name,
                     email: email,
                     clicks: 0,
-                    claimedRewards: { starter: false, bronze: false, silver: false, gold: false, diamond: false }
+                    phone: '',
+                    phoneVerified: false,
+                    phoneOtp: '',
+                    claimedRewards: { starter: false, bronze: false, silver: false, gold: false, diamond: false },
+                    seenNotifications: []
                 });
-
-                const originalLinks = [
-                    "https://www.youtube.com/watch?v=vsWxs1tuwDk",
-                    "https://www.linkedin.com/in/zaid-shahwan-2935b22b9/",
-                    "http://proveme.com/"
-                ];
-
-                for (let i = 0; i < originalLinks.length; i++) {
-                    const linkId = `link${i}`;
-                    const shortCode = generateShortCode(originalLinks[i], user.uid, linkId);
+                
+                // Add existing global links to the new user
+                const globalLinksQuery = query(collection(db, "global_links"));
+                const globalLinksSnapshot = await getDocs(globalLinksQuery);
+                
+                for(const linkDoc of globalLinksSnapshot.docs) {
+                    const linkData = linkDoc.data();
+                    const linkId = linkDoc.id;
+                    const shortCode = generateShortCode(linkData.original, user.uid, linkId);
                     const shortUrl = getShortUrl(shortCode);
-                    const linkDocRef = doc(db, `users/${user.uid}/links`, linkId);
-                    await setDoc(linkDocRef, { original: originalLinks[i], short: shortUrl, clicks: 0 });
+                    
+                    const userLinkDocRef = doc(db, `users/${user.uid}/links`, linkId);
+                    await setDoc(userLinkDocRef, { original: linkData.original, short: shortUrl, clicks: 0, global: true });
+                    
                     const shortLinkDocRef = doc(db, "shortlinks", shortCode);
-                    await setDoc(shortLinkDocRef, { original: originalLinks[i], ownerId: user.uid, linkId: linkId });
+                    await setDoc(shortLinkDocRef, { original: linkData.original, ownerId: user.uid, linkId: linkId });
                 }
                 
                 signupForm.reset();
@@ -561,7 +645,7 @@
             }
         });
 
-        // --- Sign In ---
+        // --- Sign In & Forgot Password ---
         const signinForm = document.getElementById('signin-form');
         signinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -577,16 +661,24 @@
                 signinError.textContent = "Invalid email or password.";
             }
         });
+        
+        document.getElementById('forgot-password-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            const email = prompt("Please enter your email address to receive a password reset link:");
+            if (email) {
+                sendPasswordResetEmail(auth, email)
+                    .then(() => {
+                        alert("Password reset email sent! Please check your inbox.");
+                    })
+                    .catch((error) => {
+                        alert("Error sending password reset email: " + error.message);
+                    });
+            }
+        });
 
         // --- Logout ---
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            signOut(auth);
-            window.location.hash = '';
-        });
-        document.getElementById('mobile-logout-btn').addEventListener('click', () => {
-            signOut(auth);
-            window.location.hash = '';
-        });
+        document.getElementById('logout-btn').addEventListener('click', () => { signOut(auth); window.location.hash = ''; });
+        document.getElementById('mobile-logout-btn').addEventListener('click', () => { signOut(auth); window.location.hash = ''; });
 
 
         // --- Load User Data ---
@@ -602,6 +694,7 @@
                 updateDashboard(userData.clicks, userData.claimedRewards);
                 document.getElementById('profile-name').value = user.displayName || '';
                 document.getElementById('profile-email').value = user.email || '';
+                updatePhoneVerificationUI(userData);
                 checkUserAttendance(user.uid);
             }
         }
@@ -611,117 +704,38 @@
             const linksContainer = document.getElementById('short-links-container');
             linksContainer.innerHTML = ''; 
             
-            for (let i = 0; i < 3; i++) {
-                 const linkDocRef = doc(db, `users/${userId}/links`, `link${i}`);
-                 const linkDoc = await getDoc(linkDocRef);
-                 if(linkDoc.exists()){
-                     const linkData = linkDoc.data();
-                     const linkCard = `
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <p class="text-sm text-gray-500 truncate">Original: ${linkData.original}</p>
-                            <a href="${linkData.short}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline">${linkData.short}</a>
-                            <p class="text-gray-700 mt-2">Clicks: <span class="font-bold" id="clicks-${'link'+i}">0</span></p>
-                            <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${linkData.short}">Copy Link</button>
-                        </div>
-                     `;
-                     linksContainer.innerHTML += linkCard;
-                     document.getElementById(`clicks-link${i}`).textContent = linkData.clicks;
-                 }
+            const linksQuery = query(collection(db, `users/${userId}/links`));
+            const linksSnapshot = await getDocs(linksQuery);
+            
+            if (linksSnapshot.empty) {
+                linksContainer.innerHTML = '<p>No links assigned yet.</p>';
+                return;
             }
+            
+            linksSnapshot.forEach(doc => {
+                 const linkData = doc.data();
+                 const linkId = doc.id;
+                 const linkCard = `
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <p class="text-sm text-gray-500 truncate">Original: ${linkData.original}</p>
+                        <a href="${linkData.short}" target="_blank" class="text-lg font-semibold text-indigo-600 hover:underline break-all">${linkData.short}</a>
+                        <p class="text-gray-700 mt-2">Clicks: <span class="font-bold">${linkData.clicks}</span></p>
+                        <button class="copy-btn mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 w-full" data-link="${linkData.short}">Copy Link</button>
+                    </div>
+                 `;
+                 linksContainer.innerHTML += linkCard;
+            });
 
             document.querySelectorAll('.copy-btn').forEach(button => {
                 button.addEventListener('click', () => {
                     const linkToCopy = button.getAttribute('data-link');
-                    const textArea = document.createElement('textarea');
-                    textArea.value = linkToCopy;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    try {
-                        document.execCommand('copy');
+                    navigator.clipboard.writeText(linkToCopy).then(() => {
                         button.textContent = 'Copied!';
                         setTimeout(() => { button.textContent = 'Copy Link'; }, 2000);
-                    } catch (err) {
-                        console.error('Fallback: Oops, unable to copy', err);
-                    }
-                    document.body.removeChild(textArea);
+                    });
                 });
             });
         }
-
-        // --- Update Dashboard ---
-        function updateDashboard(clicks, claimedRewards) {
-            document.getElementById('total-clicks').textContent = clicks;
-
-            const tiers = { starter: 5, bronze: 7500, silver: 15000, gold: 50000, diamond: 100000 };
-
-            Object.keys(tiers).forEach(tier => {
-                const progress = Math.min((clicks / tiers[tier]) * 100, 100);
-                document.getElementById(`${tier}-progress`).style.width = `${progress}%`;
-                const claimBtn = document.getElementById(`claim-${tier}`);
-                
-                claimBtn.disabled = true;
-                claimBtn.textContent = 'Claim Reward';
-                claimBtn.className = 'w-full bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed';
-                if (tier === 'gold') claimBtn.classList.add('mt-4');
-
-                if (claimedRewards[tier]) {
-                    claimBtn.textContent = 'Claimed';
-                    claimBtn.classList.add('bg-green-500');
-                } else if (clicks >= tiers[tier]) {
-                    claimBtn.disabled = false;
-                    claimBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                    const colorMap = { starter: 'green-600', bronze: 'yellow-600', silver: 'gray-500', gold: 'yellow-500', diamond: 'blue-400' };
-                    const hoverColorMap = { starter: 'green-700', bronze: 'yellow-700', silver: 'gray-600', gold: 'yellow-600', diamond: 'blue-500' };
-                    claimBtn.classList.add(`bg-${colorMap[tier]}`, `hover:bg-${hoverColorMap[tier]}`);
-                }
-            });
-        }
-        
-        // --- Claim Reward Logic ---
-        async function claimReward(tier) {
-            const user = auth.currentUser;
-            if (!user) return;
-            
-            const userDocRef = doc(db, "users", user.uid);
-            const updateData = {};
-            updateData[`claimedRewards.${tier}`] = true;
-
-            await updateDoc(userDocRef, updateData);
-            
-            if (tier === 'starter') {
-                try {
-                    const notificationsCollectionRef = collection(db, "notifications");
-                    await addDoc(notificationsCollectionRef, {
-                        type: 'StarterTierClaim',
-                        userId: user.uid,
-                        userEmail: user.email,
-                        claimedAt: Timestamp.now()
-                    });
-                } catch (error) {
-                    console.error("Error sending notification: ", error);
-                }
-            }
-            
-            const userDoc = await getDoc(userDocRef);
-            if(userDoc.exists()){
-                 updateDashboard(userDoc.data().clicks, userDoc.data().claimedRewards);
-            }
-
-            const claimBtn = document.getElementById(`claim-${tier}`);
-            const originalText = claimBtn.textContent;
-            claimBtn.textContent = `Claimed ${tier.charAt(0).toUpperCase() + tier.slice(1)}!`;
-            setTimeout(() => {
-                claimBtn.textContent = originalText;
-                loadUserData(user);
-            }, 2000);
-        }
-
-        document.getElementById('claim-starter').addEventListener('click', () => claimReward('starter'));
-        document.getElementById('claim-bronze').addEventListener('click', () => claimReward('bronze'));
-        document.getElementById('claim-silver').addEventListener('click', () => claimReward('silver'));
-        document.getElementById('claim-gold').addEventListener('click', () => claimReward('gold'));
-        document.getElementById('claim-diamond').addEventListener('click', () => claimReward('diamond'));
-
 
         // --- Profile Update ---
         const profileForm = document.getElementById('profile-form');
@@ -771,88 +785,73 @@
                 profileMessage.classList.add('text-red-500');
             }
         });
-
-        // --- NEW: Attendance Logic ---
-        const attendanceForm = document.getElementById('attendance-form');
-        const attendanceStatusEl = document.getElementById('attendance-status');
-        const markAttendanceBtn = document.getElementById('mark-attendance-btn');
-
-        function getTodayDateString() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        async function checkUserAttendance(userId) {
-            const today = getTodayDateString();
-            const attendanceDocRef = doc(db, "attendance", `${userId}_${today}`);
-            const attendanceDoc = await getDoc(attendanceDocRef);
-
-            if (attendanceDoc.exists()) {
-                attendanceStatusEl.textContent = "You have already marked attendance for today.";
-                attendanceStatusEl.className = 'mt-4 text-center font-semibold text-green-600';
-                markAttendanceBtn.disabled = true;
-                markAttendanceBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-                markAttendanceBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+        
+        // --- Phone Verification Logic ---
+        function updatePhoneVerificationUI(userData) {
+            const phoneInputGroup = document.getElementById('phone-input-group');
+            const otpInputGroup = document.getElementById('otp-input-group');
+            const verifiedStatus = document.getElementById('phone-verified-status');
+            const phoneInput = document.getElementById('profile-phone');
+            
+            phoneInput.value = userData.phone || '';
+            
+            if (userData.phoneVerified) {
+                phoneInputGroup.classList.add('hidden');
+                otpInputGroup.classList.add('hidden');
+                verifiedStatus.classList.remove('hidden');
+            } else if (userData.phone && userData.phoneOtp) {
+                phoneInputGroup.classList.add('hidden');
+                otpInputGroup.classList.remove('hidden');
+                verifiedStatus.classList.add('hidden');
             } else {
-                 attendanceStatusEl.textContent = "Please mark your attendance for today.";
-                 attendanceStatusEl.className = 'mt-4 text-center font-semibold text-yellow-600';
-                 markAttendanceBtn.disabled = false;
-                 markAttendanceBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                 markAttendanceBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                phoneInputGroup.classList.remove('hidden');
+                otpInputGroup.classList.add('hidden');
+                verifiedStatus.classList.add('hidden');
             }
         }
-
-        attendanceForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        
+        document.getElementById('save-phone-btn').addEventListener('click', async () => {
             const user = auth.currentUser;
             if (!user) return;
-
-            const photoFile = document.getElementById('attendance-photo').files[0];
-            if (!photoFile) {
-                attendanceStatusEl.textContent = "Please select a photo to upload.";
-                attendanceStatusEl.className = 'mt-4 text-center font-semibold text-red-500';
+            const phone = document.getElementById('profile-phone').value;
+            const messageEl = document.getElementById('phone-verification-message');
+            
+            if (!phone) {
+                messageEl.textContent = 'Please enter a phone number.';
+                messageEl.className = 'mt-4 text-center text-red-500';
                 return;
             }
+            
+            const userDocRef = doc(db, "users", user.uid);
+            await updateDoc(userDocRef, { phone: phone, phoneVerified: false, phoneOtp: '' });
+            messageEl.textContent = 'Phone number saved. Please wait for an admin to send an OTP.';
+            messageEl.className = 'mt-4 text-center text-green-500';
+        });
 
-            markAttendanceBtn.disabled = true;
-            markAttendanceBtn.textContent = 'Uploading...';
-            attendanceStatusEl.textContent = '';
-
-            try {
-                const today = getTodayDateString();
-                const storageRef = ref(storage, `attendance/${user.uid}/${today}.jpg`);
-                await uploadBytes(storageRef, photoFile);
-                const photoUrl = await getDownloadURL(storageRef);
-
-                const attendanceDocRef = doc(db, "attendance", `${user.uid}_${today}`);
-                await setDoc(attendanceDocRef, {
-                    userId: user.uid,
-                    userName: user.displayName,
-                    userEmail: user.email,
-                    date: today,
-                    timestamp: Timestamp.now(),
-                    photoUrl: photoUrl
-                });
-
-                markAttendanceBtn.textContent = 'Mark Attendance';
-                checkUserAttendance(user.uid); // Re-check to update status
-
-            } catch (error) {
-                console.error("Error marking attendance:", error);
-                attendanceStatusEl.textContent = "Failed to mark attendance. Please try again.";
-                attendanceStatusEl.className = 'mt-4 text-center font-semibold text-red-500';
-                markAttendanceBtn.disabled = false;
-                markAttendanceBtn.textContent = 'Mark Attendance';
+        document.getElementById('verify-otp-btn').addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            const otp = document.getElementById('profile-otp').value;
+            const messageEl = document.getElementById('phone-verification-message');
+            
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            const userData = userDoc.data();
+            
+            if (otp === userData.phoneOtp) {
+                await updateDoc(userDocRef, { phoneVerified: true, phoneOtp: '' });
+                messageEl.textContent = 'Phone verified successfully!';
+                messageEl.className = 'mt-4 text-center text-green-500';
+                updatePhoneVerificationUI({ ...userData, phoneVerified: true });
+            } else {
+                messageEl.textContent = 'Invalid OTP. Please try again.';
+                messageEl.className = 'mt-4 text-center text-red-500';
             }
         });
 
-        // --- NEW: Admin Panel Logic ---
+        // --- Admin Panel Logic ---
         document.getElementById('admin-link').addEventListener('click', (e) => {
             e.preventDefault();
-            // Hide all pages and show only the admin login
             showPage('admin-login', true);
             document.querySelector('nav').classList.add('hidden');
             document.querySelector('footer').classList.add('hidden');
@@ -867,7 +866,7 @@
             if (email === 'admin@system.com' && password === '123') {
                 errorEl.textContent = '';
                 showPage('admin-dashboard', true);
-                await loadAdminData();
+                setupAdminDashboard();
             } else {
                 errorEl.textContent = 'Invalid admin credentials.';
             }
@@ -876,65 +875,200 @@
         document.getElementById('admin-logout-btn').addEventListener('click', () => {
             document.querySelector('nav').classList.remove('hidden');
             document.querySelector('footer').classList.remove('hidden');
-            // Reloads the app to the default user state
             window.location.reload();
         });
-
-        async function loadAdminData() {
-            const userListBody = document.getElementById('admin-user-list');
-            userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Loading user data...</td></tr>';
-            document.getElementById('today-date').textContent = getTodayDateString();
-
-            try {
-                // 1. Get all users
-                const usersCollectionRef = collection(db, "users");
-                const userSnapshot = await getDocs(usersCollectionRef);
-                const users = userSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-                // 2. Get today's attendance for all users
-                const today = getTodayDateString();
-                const attendanceQuery = query(collection(db, "attendance"), where("date", "==", today));
-                const attendanceSnapshot = await getDocs(attendanceQuery);
-                const attendanceMap = new Map();
-                attendanceSnapshot.forEach(doc => {
-                    attendanceMap.set(doc.data().userId, doc.data());
-                });
-
-                // 3. Populate the table
-                if (users.length === 0) {
-                     userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No users found.</td></tr>';
-                     return;
-                }
-
-                let tableHtml = '';
-                for (const user of users) {
-                    const attendanceRecord = attendanceMap.get(user.id);
-                    const status = attendanceRecord 
-                        ? `<span class="text-green-600 font-semibold">Present</span>`
-                        : `<span class="text-red-600 font-semibold">Absent</span>`;
+        
+        function setupAdminDashboard() {
+            const adminCardBtns = document.querySelectorAll('.admin-card-btn');
+            const adminViews = document.querySelectorAll('.admin-view');
+            
+            adminCardBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.dataset.target;
+                    adminViews.forEach(view => view.classList.toggle('hidden', view.id !== targetId));
                     
-                    const photo = attendanceRecord
-                        ? `<a href="${attendanceRecord.photoUrl}" target="_blank" class="text-indigo-600 hover:underline">View Photo</a>`
-                        : `<span>N/A</span>`;
-
-                    tableHtml += `
-                        <tr class="border-b">
-                            <td class="p-4">
-                                <div class="font-semibold">${user.name}</div>
-                                <div class="text-sm text-gray-500">${user.email}</div>
-                            </td>
-                            <td class="p-4 font-bold">${user.clicks}</td>
-                            <td class="p-4">${status}</td>
-                            <td class="p-4">${photo}</td>
-                        </tr>
-                    `;
+                    // Load data for the selected view
+                    if (targetId === 'admin-view-users') loadAllUsers();
+                    if (targetId === 'admin-view-attendance') loadAdminAttendance();
+                    if (targetId === 'admin-view-cvs') loadAdminCVs();
+                    if (targetId === 'admin-view-links') loadGlobalLinks();
+                });
+            });
+            
+            // Initially load the first view
+            loadAllUsers();
+        }
+        
+        async function loadAllUsers() {
+             const userListBody = document.getElementById('admin-all-users-list');
+            userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Loading...</td></tr>';
+            const usersCollectionRef = collection(db, "users");
+            const userSnapshot = await getDocs(usersCollectionRef);
+            let users = userSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            function renderUsers(userArray) {
+                userListBody.innerHTML = '';
+                if (userArray.length === 0) {
+                    userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No users found.</td></tr>';
+                    return;
                 }
-                userListBody.innerHTML = tableHtml;
-
-            } catch (error) {
-                console.error("Error loading admin data:", error);
-                userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Failed to load data.</td></tr>';
+                userArray.forEach(user => {
+                    const phoneStatus = user.phoneVerified 
+                        ? `<span class="text-green-600 font-semibold">Verified</span>` 
+                        : (user.phone ? `<span class="text-yellow-600 font-semibold">Pending</span>` : `<span>Not Added</span>`);
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+                    row.innerHTML = `
+                        <td class="p-4"><div class="font-semibold">${user.name}</div><div class="text-sm text-gray-500">${user.email}</div></td>
+                        <td class="p-4">${user.phone || 'N/A'} (${phoneStatus})</td>
+                        <td class="p-4 font-bold">${user.clicks}</td>
+                        <td class="p-4"><button data-userid="${user.id}" class="details-btn bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">Details</button></td>
+                    `;
+                    userListBody.appendChild(row);
+                });
             }
+            
+            renderUsers(users);
+            
+            document.getElementById('admin-user-search').addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm));
+                renderUsers(filteredUsers);
+            });
+
+            userListBody.addEventListener('click', e => {
+                if (e.target.classList.contains('details-btn')) {
+                    const userId = e.target.dataset.userid;
+                    const userData = users.find(u => u.id === userId);
+                    openUserDetailsModal(userData);
+                }
+            });
+        }
+        
+        async function openUserDetailsModal(user) {
+            const modalsContainer = document.getElementById('modals-container');
+            
+            const phoneStatus = user.phoneVerified ? 'Verified' : (user.phone ? 'Pending' : 'Not Added');
+            const phoneAction = !user.phoneVerified && user.phone 
+                ? `<button id="generate-otp-btn" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Generate & Send OTP</button>`
+                : '';
+
+            const modalHTML = `
+                <div id="user-details-modal" class="modal-backdrop">
+                    <div class="modal-content bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 lg:w-1/3">
+                        <div class="p-6 border-b flex justify-between items-center">
+                            <h2 class="text-2xl font-bold">${user.name}</h2>
+                            <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800">&times;</button>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>Phone:</strong> ${user.phone || 'N/A'} (<span class="font-semibold">${phoneStatus}</span>)</p>
+                            <div id="otp-display" class="my-2"></div>
+                            <div>${phoneAction}</div>
+                            <hr>
+                            <h3 class="font-bold">Send Direct Message</h3>
+                            <textarea id="direct-message-text" class="w-full p-2 border rounded" rows="3" placeholder="Type your message..."></textarea>
+                            <button id="send-direct-message-btn" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">Send Message</button>
+                            <div id="direct-message-status" class="text-sm mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalsContainer.innerHTML = modalHTML;
+            
+            document.getElementById('close-modal-btn').addEventListener('click', () => {
+                modalsContainer.innerHTML = '';
+            });
+
+            if (document.getElementById('generate-otp-btn')) {
+                document.getElementById('generate-otp-btn').addEventListener('click', async () => {
+                    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+                    const userDocRef = doc(db, "users", user.id);
+                    await updateDoc(userDocRef, { phoneOtp: otp });
+                    document.getElementById('otp-display').innerHTML = `<p class="text-green-600">OTP Generated: <strong class="text-lg">${otp}</strong>. Please provide this to the user.</p>`;
+                });
+            }
+            
+            document.getElementById('send-direct-message-btn').addEventListener('click', async () => {
+                const message = document.getElementById('direct-message-text').value;
+                if (!message) return;
+                
+                const messageRef = collection(db, `users/${user.id}/direct_messages`);
+                await addDoc(messageRef, {
+                    message: message,
+                    from: 'admin',
+                    timestamp: Timestamp.now(),
+                    seen: false
+                });
+                
+                document.getElementById('direct-message-status').textContent = 'Message sent!';
+                document.getElementById('direct-message-text').value = '';
+                setTimeout(() => { document.getElementById('direct-message-status').textContent = ''; }, 3000);
+            });
+        }
+        
+        // --- Notification System ---
+        const notificationDropdown = document.getElementById('notification-dropdown');
+        const notificationList = document.getElementById('notification-list');
+        const notificationDot = document.getElementById('notification-dot');
+
+        document.getElementById('notification-bell').addEventListener('click', () => {
+            notificationDropdown.classList.toggle('hidden');
+            if (!notificationDropdown.classList.contains('hidden')) {
+                notificationDot.classList.add('hidden');
+                // Mark all visible notifications as seen
+                const user = auth.currentUser;
+                if (!user) return;
+                const unseenNotifs = Array.from(notificationList.children)
+                    .filter(el => el.dataset.seen === 'false')
+                    .map(el => el.dataset.notifid);
+                
+                if (unseenNotifs.length > 0) {
+                    const userDocRef = doc(db, "users", user.uid);
+                    getDoc(userDocRef).then(docSnap => {
+                        const currentSeen = docSnap.data().seenNotifications || [];
+                        updateDoc(userDocRef, { seenNotifications: [...currentSeen, ...unseenNotifs] });
+                    });
+                }
+            }
+        });
+
+        function listenForNotifications(userId) {
+            const userDocRef = doc(db, "users", userId);
+            
+            const q = query(collection(db, "broadcast_notifications"), orderBy("timestamp", "desc"), limit(10));
+            
+            const unsubscribe = onSnapshot(q, async (snapshot) => {
+                const userDoc = await getDoc(userDocRef);
+                const seenNotifications = userDoc.data().seenNotifications || [];
+                let hasUnseen = false;
+                
+                notificationList.innerHTML = '';
+                if (snapshot.empty) {
+                    notificationList.innerHTML = '<p class="p-4 text-gray-500 text-sm">No notifications yet.</p>';
+                    return;
+                }
+
+                snapshot.forEach(notifDoc => {
+                    const notifData = notifDoc.data();
+                    const notifId = notifDoc.id;
+                    const isSeen = seenNotifications.includes(notifId);
+                    if (!isSeen) hasUnseen = true;
+
+                    const notifElement = document.createElement('div');
+                    notifElement.dataset.notifid = notifId;
+                    notifElement.dataset.seen = isSeen;
+                    notifElement.className = `p-4 border-b hover:bg-gray-100 ${isSeen ? 'text-gray-500' : 'font-bold text-gray-800'}`;
+                    notifElement.innerHTML = `
+                        <p class="text-sm">${notifData.message}</p>
+                        <p class="text-xs text-gray-400 mt-1">${notifData.timestamp.toDate().toLocaleString()}</p>
+                    `;
+                    notificationList.appendChild(notifElement);
+                });
+                
+                notificationDot.classList.toggle('hidden', !hasUnseen);
+            });
+            return unsubscribe;
         }
 
     </script>
