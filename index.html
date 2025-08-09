@@ -110,6 +110,19 @@
 
             <!-- Main Page -->
             <div id="main-page" class="page">
+                <!-- Attendance Section -->
+                <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                    <h2 class="text-2xl font-bold mb-4">Daily Attendance</h2>
+                    <form id="attendance-form">
+                        <div class="mb-4">
+                            <label for="attendance-photo" class="block text-gray-700 mb-2">Upload Verification Photo</label>
+                            <input type="file" id="attendance-photo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" required>
+                        </div>
+                        <button type="submit" id="mark-attendance-btn" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-300">Mark Attendance</button>
+                    </form>
+                    <div id="attendance-status" class="mt-4 text-center font-semibold"></div>
+                </div>
+
                 <h1 class="text-4xl font-bold mb-4">Your Short Links</h1>
                 <p class="text-lg text-gray-600 mb-8">Share these links to track clicks and earn rewards.</p>
                 <div id="short-links-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -127,7 +140,7 @@
 
                 <h2 class="text-3xl font-bold mb-6">Eligibility & Rewards</h2>
                 <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
-                    <!-- Starter Tier (NEW) -->
+                    <!-- Starter Tier -->
                     <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-green-500">
                         <h3 class="text-xl font-bold mb-2 text-green-600">Starter Tier</h3>
                         <p class="text-gray-600 mb-4">5 clicks</p>
@@ -258,6 +271,51 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Admin Login Page (NEW) -->
+            <div id="admin-login-page" class="page">
+                <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+                    <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Admin Login</h2>
+                    <form id="admin-login-form">
+                        <div class="mb-4">
+                            <label for="admin-email" class="block text-gray-700 mb-2">Admin Email</label>
+                            <input type="email" id="admin-email" value="admin@system.com" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                        </div>
+                        <div class="mb-6">
+                            <label for="admin-password" class="block text-gray-700 mb-2">Admin Password</label>
+                            <input type="password" id="admin-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition duration-300">Login as Admin</button>
+                    </form>
+                    <div id="admin-login-error" class="text-red-500 mt-4 text-center"></div>
+                </div>
+            </div>
+            
+            <!-- Admin Dashboard Page (NEW) -->
+            <div id="admin-dashboard-page" class="page">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold">Admin Dashboard</h1>
+                    <button id="admin-logout-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Admin Logout</button>
+                </div>
+                <div class="bg-white p-8 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">User Status (<span id="today-date"></span>)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="p-4">User</th>
+                                    <th class="p-4">Total Clicks</th>
+                                    <th class="p-4">Attendance Status</th>
+                                    <th class="p-4">Verification Photo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-user-list">
+                                <!-- User data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
         </main>
 
@@ -271,6 +329,7 @@
                         <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="terms-condition">Terms & Conditions</a>
                         <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="contact-us">Contact Us</a>
                         <a href="#" class="nav-link text-gray-600 hover:text-indigo-600" data-page="about-us">About Us</a>
+                        <a href="#" id="admin-link" class="text-gray-600 hover:text-indigo-600">Admin</a>
                     </div>
                 </div>
             </div>
@@ -301,7 +360,11 @@
             getDoc,
             updateDoc,
             collection,
-            addDoc, // <-- Import addDoc
+            addDoc,
+            getDocs, // <-- Import getDocs
+            query,   // <-- Import query
+            where,   // <-- Import where
+            Timestamp, // <-- Import Timestamp
             runTransaction
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { 
@@ -405,7 +468,10 @@
         const pages = document.querySelectorAll('.page');
         const navLinks = document.querySelectorAll('.nav-link');
 
-        function showPage(pageId) {
+        function showPage(pageId, hideAll = false) {
+            if (hideAll) {
+                 pages.forEach(page => page.classList.remove('active'));
+            }
             pages.forEach(page => {
                 page.classList.toggle('active', page.id === `${pageId}-page`);
             });
@@ -463,17 +529,14 @@
 
                 await updateProfile(user, { displayName: name });
 
-                // Create user document in Firestore
                 const userDocRef = doc(db, "users", user.uid);
                 await setDoc(userDocRef, {
                     name: name,
                     email: email,
                     clicks: 0,
-                    // Add starter tier to claimed rewards
                     claimedRewards: { starter: false, bronze: false, silver: false, gold: false, diamond: false }
                 });
 
-                // Generate and store short links
                 const originalLinks = [
                     "https://www.youtube.com/watch?v=vsWxs1tuwDk",
                     "https://www.linkedin.com/in/zaid-shahwan-2935b22b9/",
@@ -484,20 +547,10 @@
                     const linkId = `link${i}`;
                     const shortCode = generateShortCode(originalLinks[i], user.uid, linkId);
                     const shortUrl = getShortUrl(shortCode);
-
                     const linkDocRef = doc(db, `users/${user.uid}/links`, linkId);
-                    await setDoc(linkDocRef, {
-                        original: originalLinks[i],
-                        short: shortUrl,
-                        clicks: 0
-                    });
-
+                    await setDoc(linkDocRef, { original: originalLinks[i], short: shortUrl, clicks: 0 });
                     const shortLinkDocRef = doc(db, "shortlinks", shortCode);
-                    await setDoc(shortLinkDocRef, {
-                        original: originalLinks[i],
-                        ownerId: user.uid,
-                        linkId: linkId
-                    });
+                    await setDoc(shortLinkDocRef, { original: originalLinks[i], ownerId: user.uid, linkId: linkId });
                 }
                 
                 signupForm.reset();
@@ -549,6 +602,7 @@
                 updateDashboard(userData.clicks, userData.claimedRewards);
                 document.getElementById('profile-name').value = user.displayName || '';
                 document.getElementById('profile-email').value = user.email || '';
+                checkUserAttendance(user.uid);
             }
         }
 
@@ -598,7 +652,6 @@
         function updateDashboard(clicks, claimedRewards) {
             document.getElementById('total-clicks').textContent = clicks;
 
-            // Add starter tier to the tiers object
             const tiers = { starter: 5, bronze: 7500, silver: 15000, gold: 50000, diamond: 100000 };
 
             Object.keys(tiers).forEach(tier => {
@@ -635,7 +688,6 @@
 
             await updateDoc(userDocRef, updateData);
             
-            // Send notification for starter tier claim
             if (tier === 'starter') {
                 try {
                     const notificationsCollectionRef = collection(db, "notifications");
@@ -643,7 +695,7 @@
                         type: 'StarterTierClaim',
                         userId: user.uid,
                         userEmail: user.email,
-                        claimedAt: new Date()
+                        claimedAt: Timestamp.now()
                     });
                 } catch (error) {
                     console.error("Error sending notification: ", error);
@@ -664,7 +716,6 @@
             }, 2000);
         }
 
-        // Add event listener for the new starter tier button
         document.getElementById('claim-starter').addEventListener('click', () => claimReward('starter'));
         document.getElementById('claim-bronze').addEventListener('click', () => claimReward('bronze'));
         document.getElementById('claim-silver').addEventListener('click', () => claimReward('silver'));
@@ -720,6 +771,171 @@
                 profileMessage.classList.add('text-red-500');
             }
         });
+
+        // --- NEW: Attendance Logic ---
+        const attendanceForm = document.getElementById('attendance-form');
+        const attendanceStatusEl = document.getElementById('attendance-status');
+        const markAttendanceBtn = document.getElementById('mark-attendance-btn');
+
+        function getTodayDateString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        async function checkUserAttendance(userId) {
+            const today = getTodayDateString();
+            const attendanceDocRef = doc(db, "attendance", `${userId}_${today}`);
+            const attendanceDoc = await getDoc(attendanceDocRef);
+
+            if (attendanceDoc.exists()) {
+                attendanceStatusEl.textContent = "You have already marked attendance for today.";
+                attendanceStatusEl.className = 'mt-4 text-center font-semibold text-green-600';
+                markAttendanceBtn.disabled = true;
+                markAttendanceBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                markAttendanceBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            } else {
+                 attendanceStatusEl.textContent = "Please mark your attendance for today.";
+                 attendanceStatusEl.className = 'mt-4 text-center font-semibold text-yellow-600';
+                 markAttendanceBtn.disabled = false;
+                 markAttendanceBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                 markAttendanceBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            }
+        }
+
+        attendanceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const photoFile = document.getElementById('attendance-photo').files[0];
+            if (!photoFile) {
+                attendanceStatusEl.textContent = "Please select a photo to upload.";
+                attendanceStatusEl.className = 'mt-4 text-center font-semibold text-red-500';
+                return;
+            }
+
+            markAttendanceBtn.disabled = true;
+            markAttendanceBtn.textContent = 'Uploading...';
+            attendanceStatusEl.textContent = '';
+
+            try {
+                const today = getTodayDateString();
+                const storageRef = ref(storage, `attendance/${user.uid}/${today}.jpg`);
+                await uploadBytes(storageRef, photoFile);
+                const photoUrl = await getDownloadURL(storageRef);
+
+                const attendanceDocRef = doc(db, "attendance", `${user.uid}_${today}`);
+                await setDoc(attendanceDocRef, {
+                    userId: user.uid,
+                    userName: user.displayName,
+                    userEmail: user.email,
+                    date: today,
+                    timestamp: Timestamp.now(),
+                    photoUrl: photoUrl
+                });
+
+                markAttendanceBtn.textContent = 'Mark Attendance';
+                checkUserAttendance(user.uid); // Re-check to update status
+
+            } catch (error) {
+                console.error("Error marking attendance:", error);
+                attendanceStatusEl.textContent = "Failed to mark attendance. Please try again.";
+                attendanceStatusEl.className = 'mt-4 text-center font-semibold text-red-500';
+                markAttendanceBtn.disabled = false;
+                markAttendanceBtn.textContent = 'Mark Attendance';
+            }
+        });
+
+        // --- NEW: Admin Panel Logic ---
+        document.getElementById('admin-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            // Hide all pages and show only the admin login
+            showPage('admin-login', true);
+            document.querySelector('nav').classList.add('hidden');
+            document.querySelector('footer').classList.add('hidden');
+        });
+
+        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-login-error');
+
+            if (email === 'admin@system.com' && password === '123') {
+                errorEl.textContent = '';
+                showPage('admin-dashboard', true);
+                await loadAdminData();
+            } else {
+                errorEl.textContent = 'Invalid admin credentials.';
+            }
+        });
+
+        document.getElementById('admin-logout-btn').addEventListener('click', () => {
+            document.querySelector('nav').classList.remove('hidden');
+            document.querySelector('footer').classList.remove('hidden');
+            // Reloads the app to the default user state
+            window.location.reload();
+        });
+
+        async function loadAdminData() {
+            const userListBody = document.getElementById('admin-user-list');
+            userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Loading user data...</td></tr>';
+            document.getElementById('today-date').textContent = getTodayDateString();
+
+            try {
+                // 1. Get all users
+                const usersCollectionRef = collection(db, "users");
+                const userSnapshot = await getDocs(usersCollectionRef);
+                const users = userSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // 2. Get today's attendance for all users
+                const today = getTodayDateString();
+                const attendanceQuery = query(collection(db, "attendance"), where("date", "==", today));
+                const attendanceSnapshot = await getDocs(attendanceQuery);
+                const attendanceMap = new Map();
+                attendanceSnapshot.forEach(doc => {
+                    attendanceMap.set(doc.data().userId, doc.data());
+                });
+
+                // 3. Populate the table
+                if (users.length === 0) {
+                     userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No users found.</td></tr>';
+                     return;
+                }
+
+                let tableHtml = '';
+                for (const user of users) {
+                    const attendanceRecord = attendanceMap.get(user.id);
+                    const status = attendanceRecord 
+                        ? `<span class="text-green-600 font-semibold">Present</span>`
+                        : `<span class="text-red-600 font-semibold">Absent</span>`;
+                    
+                    const photo = attendanceRecord
+                        ? `<a href="${attendanceRecord.photoUrl}" target="_blank" class="text-indigo-600 hover:underline">View Photo</a>`
+                        : `<span>N/A</span>`;
+
+                    tableHtml += `
+                        <tr class="border-b">
+                            <td class="p-4">
+                                <div class="font-semibold">${user.name}</div>
+                                <div class="text-sm text-gray-500">${user.email}</div>
+                            </td>
+                            <td class="p-4 font-bold">${user.clicks}</td>
+                            <td class="p-4">${status}</td>
+                            <td class="p-4">${photo}</td>
+                        </tr>
+                    `;
+                }
+                userListBody.innerHTML = tableHtml;
+
+            } catch (error) {
+                console.error("Error loading admin data:", error);
+                userListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Failed to load data.</td></tr>';
+            }
+        }
 
     </script>
 </body>
